@@ -1,0 +1,20 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}MotoHub{% endblock %}</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#090a0b;color:#f4f4f4;font-family:Arial,sans-serif}a{color:inherit;text-decoration:none}
+.nav{height:72px;border-bottom:1px solid #25282a;display:flex;align-items:center;justify-content:space-between;padding:0 6%;position:sticky;top:0;background:#090a0bee;backdrop-filter:blur(10px);z-index:10}
+.logo{font-size:25px;font-weight:900;letter-spacing:2px}.logo span,.accent{color:#b8ff00}.links{display:flex;gap:18px;align-items:center}
+.btn{background:#b8ff00;color:#080a08;border:0;padding:12px 18px;border-radius:10px;font-weight:800;cursor:pointer}.btn.dark{background:#171b1c;color:#fff;border:1px solid #303537}
+.hero{min-height:560px;padding:90px 8%;display:flex;align-items:center;overflow:hidden;background:radial-gradient(circle at 70% 45%,#243000 0,#10140b 20%,transparent 48%),linear-gradient(120deg,#0a0b0c,#111416)}
+.hero h1{font-size:clamp(48px,8vw,100px);line-height:.88;margin:0;max-width:850px}.muted{color:#92999d}.wrap{max-width:1200px;margin:auto;padding:55px 6%}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.card{background:#131617;border:1px solid #25292b;border-radius:18px;padding:24px}.card h3{margin-top:0}
+.tag{display:inline-block;color:#b8ff00;font-size:12px;font-weight:bold;letter-spacing:1px;margin-bottom:12px}.form{max-width:460px;margin:80px auto;padding:35px;background:#131617;border:1px solid #282c2e;border-radius:20px}
+.input{width:100%;padding:14px;margin:8px 0 15px;background:#090a0b;color:#fff;border:1px solid #363b3e;border-radius:10px}.error{color:#ff6b6b;margin:12px 0}
+.chat{height:420px;overflow:auto;background:#0e1011;border:1px solid #292d2f;border-radius:16px;padding:16px}.msg{padding:9px 0;border-bottom:1px solid #202325}.small{font-size:12px;color:#72787c}
+.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#222;display:block}.avatar-lg{width:120px;height:120px;border-radius:50%;object-fit:cover;background:#222;border:2px solid #b8ff00}
+@media(max-width:750px){.admin-grid{grid-template-columns:1fr}.links a.nav-hide{display:none}.nav{padding:0 4%}.links{gap:8px}.logo{font-size:20px}}
+</style></head><body><nav class="nav"><a class="logo" href="/">MOTO<span>HUB</span></a><div class="links">
+<a class="nav-hide" href="/#events">События</a><a class="nav-hide" href="/#news">Новости</a>
+{% if user %}<a href="/profile">👤 Профиль</a><a href="/chat" onclick="return openChat(event)">💬 Чат</a>{% if user.role in ['ADMIN','MODERATOR'] %}<a href="/admin">Админка</a>{% endif %}<form method="post" action="/logout"><button class="btn">Выйти</button></form>
+{% else %}<a class="btn" href="/login">Войти</a>{% endif %}
+</div></nav>{% block content %}{% endblock %}
+<script>function openChat(e){e.preventDefault();window.open('/chat','motohub_chat','width=1200,height=800,resizable=yes,scrollbars=yes');return false}</script></body></html>

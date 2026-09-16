@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% block title %}Админка — MotoHub{% endblock %}{% block content %}
+<div class="wrap"><div class="tag">CONTROL CENTER</div><h1>Админ-панель</h1>
+<div class="admin-grid">
+<div class="card"><h2>Добавить новость</h2><form method="post" action="/admin/news"><input class="input" name="title" placeholder="Заголовок" required><textarea class="input" name="body" placeholder="Текст" required></textarea><button class="btn">Опубликовать</button></form></div>
+<div class="card"><h2>Добавить событие</h2><form method="post" action="/admin/events"><input class="input" name="title" placeholder="Название" required><textarea class="input" name="description" placeholder="Описание" required></textarea><input class="input" name="starts_at" placeholder="2026-10-01 19:00" required><input class="input" name="location" placeholder="Место"><button class="btn">Добавить</button></form></div>
+</div>
+<h2 style="margin-top:40px">Профили участников</h2>
+<div class="grid">{% for u in users %}<div class="card">
+<div style="display:flex;gap:14px;align-items:center">
+{% if u.avatar_url %}<img class="avatar" src="{{u.avatar_url}}">{% else %}<div class="avatar" style="display:grid;place-items:center">🏍️</div>{% endif %}
+<div><b>{{u.display_name or u.email.split('@')[0]}}</b><div class="small">{{u.email}}</div><div class="small">ID {{u.id}} · {{u.role}}{% if u.is_banned %} · BANNED{% endif %}</div></div>
+</div>
+<form method="post" action="/admin/profile" style="margin-top:14px"><input type="hidden" name="user_id" value="{{u.id}}">
+<input class="input" name="display_name" value="{{u.display_name or ''}}" placeholder="Никнейм">
+<input class="input" name="motorcycle" value="{{u.motorcycle or ''}}" placeholder="Мотоцикл">
+<input class="input" name="city" value="{{u.city or ''}}" placeholder="Город">
+<textarea class="input" name="bio" placeholder="О себе">{{u.bio or ''}}</textarea>
+<button class="btn">Сохранить профиль</button></form>
+<div style="margin-top:12px"><a class="btn dark" href="/profile/{{u.id}}" target="_blank">Открыть профиль</a></div>
+{% if user.role=="ADMIN" %}<form method="post" action="/admin/role" style="margin-top:12px"><input type="hidden" name="user_id" value="{{u.id}}"><select class="input" name="role"><option {% if u.role=="USER" %}selected{% endif %}>USER</option><option {% if u.role=="MODERATOR" %}selected{% endif %}>MODERATOR</option><option {% if u.role=="ADMIN" %}selected{% endif %}>ADMIN</option></select><button class="btn">Изменить роль</button></form>
+<form method="post" action="/admin/ban" style="margin-top:8px"><input type="hidden" name="user_id" value="{{u.id}}"><input type="hidden" name="banned" value="{{0 if u.is_banned else 1}}"><button class="btn dark">{{"Разбанить" if u.is_banned else "Забанить"}}</button></form>{% endif %}
+</div>{% endfor %}</div>
+
+<h2 style="margin-top:40px">Добавить результат участника</h2>
+<div class="card">
+<form method="post" action="/admin/achievement">
+<select class="input" name="user_id" required><option value="">Участник</option>{% for u in users %}<option value="{{u.id}}">{{u.display_name or u.email.split('@')[0]}} — {{u.email}}</option>{% endfor %}</select>
+<select class="input" name="event_id"><option value="">Мероприятие</option>{% for e in events %}<option value="{{e.id}}">{{e.title}} — {{e.starts_at}}</option>{% endfor %}</select>
+<input class="input" name="place" type="number" min="1" max="999" placeholder="Место, например 1">
+<input class="input" name="award" maxlength="120" placeholder="Награда / кубок / номинация">
+<textarea class="input" name="note" maxlength="500" placeholder="Комментарий"></textarea>
+<button class="btn">Записать результат</button></form>
+</div>
+
+<h2 style="margin-top:40px">Все результаты</h2>
+<div class="grid">
+{% for u in users %}
+<div class="card"><b>{{u.display_name or u.email.split('@')[0]}}</b>
+{% set rows = namespace(items=[]) %}
+{% for a in [] %}{% endfor %}
+<p class="muted">Результаты можно просматривать и редактировать через профиль участника.</p>
+<a class="btn dark" href="/profile/{{u.id}}" target="_blank">Профиль и история</a>
+</div>
+{% endfor %}
+</div>
+</div>{% endblock %}

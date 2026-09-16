@@ -1,0 +1,53 @@
+{% extends "base.html" %}{% block title %}Профиль — MotoHub{% endblock %}{% block content %}
+<div class="wrap">
+  <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.6fr);gap:24px;align-items:start">
+    <section class="card">
+      <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
+        {% if profile.avatar_url %}<img class="avatar-lg" src="{{profile.avatar_url}}">{% else %}<div class="avatar-lg" style="display:grid;place-items:center;font-size:42px">🏍️</div>{% endif %}
+        <div>
+          <div class="tag">RIDER PROFILE</div>
+          <h1 style="margin:0 0 8px">{{profile.display_name or profile.email.split('@')[0]}}</h1>
+          <div class="muted">{{profile.city or "Город не указан"}}{% if profile.motorcycle %} · {{profile.motorcycle}}{% endif %}</div>
+          <div class="small" style="margin-top:7px">В MotoHub с {{profile.created_at[:10]}}</div>
+        </div>
+      </div>
+      {% if profile.bio %}<p style="margin-top:24px;line-height:1.6">{{profile.bio}}</p>{% endif %}
+      {% if user and user.id == profile.id %}
+      <details style="margin-top:22px"><summary style="cursor:pointer;font-weight:800">Редактировать свой профиль</summary>
+        <form method="post" action="/profile/update" enctype="multipart/form-data" style="margin-top:14px">
+          <input class="input" name="display_name" maxlength="80" value="{{profile.display_name or ''}}" placeholder="Никнейм">
+          <input class="input" name="motorcycle" maxlength="100" value="{{profile.motorcycle or ''}}" placeholder="Мотоцикл">
+          <input class="input" name="city" maxlength="100" value="{{profile.city or ''}}" placeholder="Город">
+          <textarea class="input" name="bio" maxlength="500" placeholder="О себе">{{profile.bio or ''}}</textarea>
+          <input class="input" type="file" name="avatar" accept=".jpg,.jpeg,.png,.webp,image/*">
+          <button class="btn">Сохранить профиль</button>
+        </form>
+      </details>
+      {% endif %}
+    </section>
+    <aside class="card">
+      <div class="tag">RESULTS</div>
+      <h2 style="margin-top:0">Результаты</h2>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
+        <div class="card"><b style="font-size:28px">{{stats.total or 0}}</b><div class="small">стартов</div></div>
+        <div class="card"><b style="font-size:28px">{{stats.firsts or 0}}</b><div class="small">1-е места</div></div>
+        <div class="card"><b style="font-size:28px">{{stats.seconds or 0}}</b><div class="small">2-е места</div></div>
+        <div class="card"><b style="font-size:28px">{{stats.thirds or 0}}</b><div class="small">3-и места</div></div>
+      </div>
+    </aside>
+  </div>
+  <section style="margin-top:28px"><div class="tag">EVENT HISTORY</div><h2>Мероприятия и достижения</h2>
+    <div class="grid">
+      {% for a in achievements %}
+      <article class="card">
+        <div class="small">{{a.starts_at[:16] if a.starts_at else ''}}{% if a.location %} · {{a.location}}{% endif %}</div>
+        <h3>{{a.event_title or "Мероприятие"}}</h3>
+        {% if a.place %}<div style="font-size:22px;font-weight:900">🏁 {{a.place}} место</div>{% endif %}
+        {% if a.award %}<p class="accent" style="font-weight:800">🏆 {{a.award}}</p>{% endif %}
+        {% if a.note %}<p class="muted">{{a.note}}</p>{% endif %}
+      </article>
+      {% else %}<div class="card">Администратор ещё не добавил результаты.</div>{% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

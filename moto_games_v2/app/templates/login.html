@@ -1,0 +1,2 @@
+{% extends "base.html" %}{% block title %}Вход — MotoHub{% endblock %}{% block content %}
+<div class="form"><div class="tag">EMAIL AUTH</div><h1>Вход в MotoHub</h1><p class="muted">Получим код подтверждения на email.</p>{% if request.query_params.get('error') %}<div class="error">{{request.query_params.get('error')}}</div>{% endif %}<form method="post" action="/auth/request"><input class="input" type="email" name="email" placeholder="you@example.com" required><button class="btn">Получить код</button></form></div>{% endblock %}
