@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}MotoHub — мотоциклы. люди. дорога.{% endblock %}
+{% block content %}
+<style>
+.hero-v3{max-width:1500px;margin:0 auto;min-height:620px;padding:90px 6% 70px;display:grid;grid-template-columns:1.02fr .98fr;gap:34px;align-items:center;position:relative;overflow:hidden}
+.hero-v3:after{content:"";position:absolute;inset:auto -15% -30% 35%;height:420px;background:radial-gradient(circle,rgba(255,38,54,.15),transparent 65%);pointer-events:none}
+.hero-copy{position:relative;z-index:2}.hero-copy h1{margin:10px 0 16px;font-size:clamp(60px,8vw,122px);line-height:.86;letter-spacing:-5px}.hero-copy h1 .accent{color:#ff2636}.hero-copy p{max-width:650px;font-size:18px;line-height:1.55}.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.live-panel{position:relative;z-index:2;border:1px solid rgba(255,255,255,.09);border-radius:24px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));box-shadow:0 30px 100px rgba(0,0,0,.45);min-height:420px}.live-head{display:flex;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.07)}.live-label{color:#ff2636;font-size:11px;font-weight:900;letter-spacing:2px}.live-content{padding:18px}.live-cover{height:220px;border-radius:16px;overflow:hidden;background:#111}.live-cover img{width:100%;height:100%;object-fit:cover}.live-title{font-size:28px;font-weight:900;margin:16px 0 6px}.live-meta{color:#a0a6a9}.section-v3{max-width:1500px;margin:0 auto;padding:40px 6%}.section-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:18px}.section-head h2{margin:4px 0;font-size:clamp(30px,4vw,52px)}.line{height:1px;flex:1;background:linear-gradient(90deg,#ff2636,transparent);margin-bottom:12px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.v3-card{border:1px solid rgba(255,255,255,.07);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.025);transition:transform .2s,border-color .2s}.v3-card:hover{transform:translateY(-4px);border-color:rgba(255,38,54,.4)}.v3-card img{width:100%;height:190px;object-fit:cover}.v3-card-body{padding:16px}.v3-card h3{margin:5px 0 8px;font-size:20px}.small-red{color:#ff2636;font-size:10px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase}.past{opacity:.78}.empty-v3{padding:28px;border:1px dashed rgba(255,255,255,.12);border-radius:16px;color:#747b7e}
+@media(max-width:1000px){.hero-v3{grid-template-columns:1fr;min-height:auto;padding-top:65px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.live-panel{max-width:760px}}@media(max-width:650px){.hero-v3{padding:48px 18px 30px}.hero-copy h1{font-size:62px;letter-spacing:-3px}.hero-copy p{font-size:15px}.section-v3{padding:30px 18px}.cards{grid-template-columns:1fr}.live-panel{min-height:0}.live-cover{height:180px}}
+</style>
+
+<section class="hero-v3">
+  <div class="hero-copy">
+    <div class="tag">MOTO CLUB / РЕСПУБЛИКА САХА (ЯКУТИЯ)</div>
+    <h1>Мотоциклы.<br><span class="accent">Люди.</span><br>Дорога.</h1>
+    <p class="muted">MotoHub — мото-сообщество Республики Саха (Якутия): мероприятия, новости, общение, участники, достижения и мото-жизнь региона.</p>
+    <div class="hero-actions"><a class="btn" href="#events">Смотреть события</a>{% if user %}<a class="btn dark" href="/profile">Мой профиль</a><a class="btn" href="/chat">Открыть чат</a>{% else %}<a class="btn dark" href="/register">Присоединиться</a>{% endif %}</div>
+  </div>
+  <div class="live-panel">
+    <div class="live-head"><span class="live-label">СЕЙЧАС В MOTOHUB</span><span class="muted">АКТУАЛЬНОЕ</span></div>
+    <div class="live-content">
+      {% if upcoming_events %}
+        {% set e=upcoming_events[0] %}
+        <div class="live-cover">{% if e.photos %}<img src="{{ e.photos[0].url }}" alt="">{% else %}<div style="height:100%;display:grid;place-items:center;color:#ff2636;font-weight:900;font-size:52px">MOTO</div>{% endif %}</div>
+        <div class="small-red">БЛИЖАЙШЕЕ СОБЫТИЕ</div><div class="live-title">{{ e.title }}</div><div class="live-meta">{{ e.starts_at }} · {{ e.location or 'Место уточняется' }}</div>
+      {% elif news %}
+        {% set n=news[0] %}<div class="live-cover">{% if n.photos %}<img src="{{ n.photos[0].url }}" alt="">{% else %}<div style="height:100%;display:grid;place-items:center;color:#ff2636;font-weight:900;font-size:52px">NEWS</div>{% endif %}</div><div class="small-red">СВЕЖАЯ НОВОСТЬ</div><div class="live-title">{{ n.title }}</div><div class="live-meta">{{ n.body[:160] }}{% if n.body|length > 160 %}…{% endif %}</div>
+      {% else %}<div class="empty-v3">Пока нет актуальных публикаций. Самое время создать первое мероприятие.</div>{% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="section-v3" id="events"><div class="section-head"><div><div class="tag">UPCOMING</div><h2>Ближайшие мероприятия</h2></div><div class="line"></div></div><div class="cards">{% for e in upcoming_events %}<article class="v3-card"><a href="#event-{{e.id}}">{% if e.photos %}<img src="{{e.photos[0].url}}" alt="">{% endif %}<div class="v3-card-body"><div class="small-red">{{ e.starts_at }}</div><h3>{{ e.title }}</h3><p class="muted">{{ e.description }}</p><div class="muted">{{ e.location or 'Место уточняется' }}</div></div></a></article>{% else %}<div class="empty-v3">Ближайших мероприятий пока нет.</div>{% endfor %}</div></section>
+
+<section class="section-v3" id="news"><div class="section-head"><div><div class="tag">CLUB NEWS</div><h2>Новости</h2></div><div class="line"></div></div><div class="cards">{% for n in news %}<article class="v3-card">{% if n.photos %}<img src="{{n.photos[0].url}}" alt="">{% endif %}<div class="v3-card-body"><div class="small-red">{{ n.created_at }}</div><h3>{{ n.title }}</h3><p class="muted">{{ n.body }}</p></div></article>{% else %}<div class="empty-v3">Новостей пока нет.</div>{% endfor %}</div></section>
+
+<section class="section-v3 past"><div class="section-head"><div><div class="tag">ARCHIVE</div><h2>Прошедшие мероприятия</h2></div><div class="line"></div></div><div class="cards">{% for e in past_events %}<article class="v3-card">{% if e.photos %}<img src="{{e.photos[0].url}}" alt="">{% endif %}<div class="v3-card-body"><div class="small-red">ЗАВЕРШЕНО · {{ e.starts_at }}</div><h3>{{ e.title }}</h3><p class="muted">{{ e.description }}</p><div class="muted">{{ e.location or '' }}</div></div></article>{% else %}<div class="empty-v3">Архив мероприятий пока пуст.</div>{% endfor %}</div></section>
+
+<section class="section-v3 past"><div class="section-head"><div><div class="tag">NEWS ARCHIVE</div><h2>Архив новостей</h2></div><div class="line"></div></div><div class="cards">{% for n in past_news[6:] %}<article class="v3-card"><div class="v3-card-body"><div class="small-red">{{ n.created_at }}</div><h3>{{ n.title }}</h3><p class="muted">{{ n.body }}</p></div></article>{% endfor %}</div></section>
+{% endblock %}

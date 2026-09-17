@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Вход — MotoHub{% endblock %}
+
+{% block content %}
+
+<div class="form">
+
+    <div class="tag">MOTOHUB AUTH</div>
+
+    <h1>Вход в MotoHub</h1>
+
+    <p class="muted">
+        Введите email и пароль.
+        На новом устройстве потребуется код из Gmail.
+    </p>
+
+    {% if error %}
+        <div class="error">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="post" action="/auth/login">
+
+        <input
+            class="input"
+            type="email"
+            name="email"
+            placeholder="Email"
+            autocomplete="email"
+            required
+        >
+
+        <input
+            class="input"
+            type="password"
+            name="password"
+            placeholder="Пароль"
+            autocomplete="current-password"
+            minlength="6"
+            required
+        >
+
+        <button class="btn" type="submit">
+            Войти
+        </button>
+
+    </form>
+
+
+    <!-- Регистрация -->
+
+    <div
+        style="
+            margin-top:18px;
+            padding-top:18px;
+            border-top:1px solid rgba(255,255,255,.08);
+            text-align:center;
+        "
+    >
+
+        <div
+            class="muted"
+            style="margin-bottom:10px;"
+        >
+            Ещё нет аккаунта?
+        </div>
+
+        <a
+            href="/register"
+            class="btn"
+            style="
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                width:100%;
+                text-decoration:none;
+                background:transparent;
+                border:1px solid rgba(255,255,255,.18);
+            "
+        >
+            Зарегистрироваться
+        </a>
+
+    </div>
+
+
+    <!-- Восстановление пароля -->
+
+    <p
+        class="muted"
+        style="
+            margin-top:16px;
+            text-align:center;
+        "
+    >
+        <a href="/forgot">
+            Забыли пароль?
+        </a>
+    </p>
+
+</div>
+
+{% endblock %}
