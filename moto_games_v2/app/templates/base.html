@@ -7,7 +7,7 @@
 
     <meta
         name="viewport"
-        content="width=device-width,initial-scale=1,viewport-fit=cover"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
     >
 
     <meta
@@ -80,20 +80,28 @@
 <style>
 
 /* =========================================================
-   GLOBAL
+   RESET
    ========================================================= */
 
-* {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
 }
 
 html {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
     scroll-behavior: smooth;
 }
 
 body {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+
     margin: 0;
-    min-height: 100vh;
 
     background:
         radial-gradient(
@@ -114,6 +122,7 @@ body {
 }
 
 img {
+    display: block;
     max-width: 100%;
 }
 
@@ -127,6 +136,7 @@ input,
 textarea,
 select {
     font: inherit;
+    max-width: 100%;
 }
 
 button {
@@ -144,58 +154,75 @@ button {
    ========================================================= */
 
 .nav {
+    width: 100%;
+    max-width: 100%;
+
     min-height: 72px;
-
-    border-bottom: 1px solid #25282a;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    gap: 20px;
 
     padding:
         0
         max(20px, 6%);
 
+    border-bottom:
+        1px solid
+        #25282a;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
     position: sticky;
+
     top: 0;
 
-    background: rgba(9,10,11,.93);
+    background:
+        rgba(9,10,11,.94);
 
-    backdrop-filter: blur(14px);
+    backdrop-filter:
+        blur(14px);
 
-    -webkit-backdrop-filter: blur(14px);
+    -webkit-backdrop-filter:
+        blur(14px);
 
     z-index: 1000;
 }
 
 .logo {
-    flex-shrink: 0;
+    flex: 0 0 auto;
 
     font-size: 25px;
+
     font-weight: 900;
 
     letter-spacing: 2px;
+
+    white-space: nowrap;
 }
 
-.logo span,
-.accent {
+.logo span {
     color: #b8ff00;
 }
 
 .links {
+    min-width: 0;
+    max-width: 100%;
+
     display: flex;
+
     align-items: center;
 
     justify-content: flex-end;
 
     gap: 18px;
-
-    min-width: 0;
 }
 
 .links > a {
+    flex: 0 0 auto;
+
     white-space: nowrap;
 
     color: #e7e9e9;
@@ -210,6 +237,8 @@ button {
 }
 
 .links form {
+    flex: 0 0 auto;
+
     margin: 0;
 }
 
@@ -226,19 +255,22 @@ button {
 
     min-height: 44px;
 
+    padding:
+        11px 18px;
+
     background: #b8ff00;
 
     color: #080a08;
 
     border: 0;
 
-    padding: 11px 18px;
-
     border-radius: 10px;
 
     font-weight: 800;
 
     cursor: pointer;
+
+    white-space: nowrap;
 
     transition:
         transform .18s ease,
@@ -249,14 +281,17 @@ button {
 .btn:hover {
     background: #c6ff36;
 
-    transform: translateY(-1px);
+    transform:
+        translateY(-1px);
 
     box-shadow:
-        0 8px 25px rgba(184,255,0,.12);
+        0 8px 25px
+        rgba(184,255,0,.12);
 }
 
 .btn:active {
-    transform: translateY(0);
+    transform:
+        translateY(0);
 }
 
 .btn.dark,
@@ -265,7 +300,9 @@ button {
 
     color: #fff;
 
-    border: 1px solid #303537;
+    border:
+        1px solid
+        #303537;
 }
 
 .btn.dark:hover,
@@ -277,30 +314,15 @@ button {
     box-shadow: none;
 }
 
-.btn.small {
-    min-height: 38px;
-
-    padding: 8px 14px;
-
-    font-size: 13px;
-}
-
-.danger-btn {
-    background: #ff2636;
-
-    color: #fff;
-}
-
-.danger-btn:hover {
-    background: #ff4351;
-}
-
 
 /* =========================================================
    HERO
    ========================================================= */
 
 .hero {
+    width: 100%;
+    max-width: 100%;
+
     min-height: 560px;
 
     padding:
@@ -326,15 +348,28 @@ button {
         );
 }
 
+.hero > div {
+    min-width: 0;
+    max-width: 100%;
+}
+
 .hero h1 {
-    font-size:
-        clamp(48px, 8vw, 100px);
-
-    line-height: .88;
-
     margin: 0;
 
     max-width: 850px;
+
+    font-size:
+        clamp(
+            48px,
+            8vw,
+            100px
+        );
+
+    line-height: .88;
+}
+
+.accent {
+    color: #b8ff00;
 }
 
 
@@ -344,41 +379,62 @@ button {
 
 .wrap {
     width: 100%;
-
     max-width: 1200px;
 
-    margin: 0 auto;
+    margin:
+        0 auto;
 
     padding:
         55px 6%;
+
+    min-width: 0;
 }
 
 .grid {
+    width: 100%;
+    max-width: 100%;
+
     display: grid;
 
     grid-template-columns:
         repeat(
             auto-fit,
-            minmax(280px, 1fr)
+            minmax(
+                min(280px, 100%),
+                1fr
+            )
         );
 
     gap: 18px;
-}
-
-.card {
-    background: #131617;
-
-    border: 1px solid #25292b;
-
-    border-radius: 18px;
-
-    padding: 24px;
 
     min-width: 0;
 }
 
+.card {
+    min-width: 0;
+    max-width: 100%;
+
+    padding: 24px;
+
+    background: #131617;
+
+    border:
+        1px solid
+        #25292b;
+
+    border-radius: 18px;
+
+    overflow-wrap: anywhere;
+}
+
 .card h3 {
     margin-top: 0;
+
+    overflow-wrap: anywhere;
+}
+
+.card p {
+    overflow-wrap: anywhere;
 }
 
 .muted {
@@ -401,6 +457,14 @@ button {
     margin-bottom: 12px;
 }
 
+.small {
+    font-size: 12px;
+
+    color: #72787c;
+
+    overflow-wrap: anywhere;
+}
+
 
 /* =========================================================
    FORMS
@@ -409,9 +473,11 @@ button {
 .form {
     width:
         min(
-            100% - 32px,
-            460px
+            460px,
+            calc(100% - 24px)
         );
+
+    max-width: 100%;
 
     margin:
         80px auto;
@@ -425,16 +491,15 @@ button {
         #282c2e;
 
     border-radius: 20px;
-
-    box-shadow:
-        0 20px 70px rgba(0,0,0,.18);
 }
 
 .form h1 {
-    margin-top: 8px;
+    overflow-wrap: anywhere;
 }
 
 .form form {
+    width: 100%;
+
     display: flex;
 
     flex-direction: column;
@@ -444,14 +509,14 @@ button {
 
 .input {
     width: 100%;
+    max-width: 100%;
 
     min-height: 50px;
 
     padding: 14px;
 
     margin:
-        8px 0
-        15px;
+        8px 0 15px;
 
     background: #090a0b;
 
@@ -479,6 +544,8 @@ button {
 }
 
 textarea.input {
+    min-width: 0;
+
     resize: vertical;
 }
 
@@ -505,51 +572,8 @@ textarea.input {
         rgba(255,38,54,.08);
 
     line-height: 1.4;
-}
 
-.otp-input {
-    text-align: center;
-
-    font-size: 28px !important;
-
-    font-weight: 800;
-
-    letter-spacing: 7px;
-}
-
-
-/* =========================================================
-   CHAT
-   ========================================================= */
-
-.chat {
-    height: 420px;
-
-    overflow: auto;
-
-    background: #0e1011;
-
-    border:
-        1px solid
-        #292d2f;
-
-    border-radius: 16px;
-
-    padding: 16px;
-}
-
-.msg {
-    padding: 9px 0;
-
-    border-bottom:
-        1px solid
-        #202325;
-}
-
-.small {
-    font-size: 12px;
-
-    color: #72787c;
+    overflow-wrap: anywhere;
 }
 
 
@@ -561,18 +585,20 @@ textarea.input {
     width: 48px;
     height: 48px;
 
+    flex: 0 0 auto;
+
     border-radius: 50%;
 
     object-fit: cover;
 
     background: #222;
-
-    display: block;
 }
 
 .avatar-lg {
     width: 120px;
     height: 120px;
+
+    flex: 0 0 auto;
 
     border-radius: 50%;
 
@@ -587,127 +613,41 @@ textarea.input {
 
 
 /* =========================================================
-   ADMIN — MAIN
+   ADMIN
    ========================================================= */
 
-.admin-page {
-    width:
-        min(
-            1180px,
-            calc(100% - 40px)
-        );
-
-    margin:
-        40px auto
-        80px;
-}
-
-.admin-head {
-    display: flex;
-
-    align-items: flex-start;
-
-    justify-content: space-between;
-
-    gap: 30px;
-
-    margin-bottom: 40px;
-}
-
-.admin-head h1 {
-    margin:
-        8px 0 12px;
-
-    font-size:
-        clamp(
-            34px,
-            5vw,
-            56px
-        );
-
-    line-height: 1;
-}
-
-.admin-head .btn {
-    flex-shrink: 0;
-}
-
-
-/* =========================================================
-   ADMIN — SECTIONS
-   ========================================================= */
-
-.admin-section {
-    margin-bottom: 28px;
-
-    padding: 28px;
-
-    border:
-        1px solid
-        #292d30;
-
-    border-radius: 22px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #0f1112,
-            #0c0e0f
-        );
-
-    box-shadow:
-        0 15px 50px
-        rgba(0,0,0,.14);
-}
-
-.section-head {
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    margin-bottom: 22px;
-}
-
-.section-head h2 {
-    margin:
-        7px 0 0;
-
-    font-size: 30px;
-}
-
-
-/* =========================================================
-   ADMIN — SEARCH
-   ========================================================= */
-
-.admin-search {
-    margin-bottom: 20px;
-}
-
-.admin-search .input {
+.admin-grid {
     width: 100%;
+    max-width: 100%;
 
-    margin-bottom: 0;
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0,1fr)
+        );
+
+    gap: 20px;
+
+    min-width: 0;
 }
 
 
-/* =========================================================
-   ADMIN — USERS
-   ========================================================= */
+/*
+   Список участников.
+   Теперь прокручивается только он.
+*/
 
 .admin-users {
+    width: 100%;
+    max-width: 100%;
+
     display: flex;
 
     flex-direction: column;
 
     gap: 14px;
-
-    /*
-     * Список участников теперь
-     * прокручивается отдельно.
-     */
 
     max-height: 620px;
 
@@ -723,9 +663,6 @@ textarea.input {
         #454b4f
         #111415;
 }
-
-
-/* Chrome / Edge / Яндекс */
 
 .admin-users::-webkit-scrollbar {
     width: 8px;
@@ -749,10 +686,15 @@ textarea.input {
 
 
 /* =========================================================
-   ADMIN — USER CARD
+   ADMIN USER
    ========================================================= */
 
 .admin-user {
+    width: 100%;
+    max-width: 100%;
+
+    min-width: 0;
+
     padding: 20px;
 
     border:
@@ -763,642 +705,115 @@ textarea.input {
 
     background: #111415;
 
-    min-width: 0;
+    overflow: hidden;
 
     flex-shrink: 0;
-
-    transition:
-        border-color .2s ease,
-        background .2s ease,
-        transform .2s ease;
-}
-
-.admin-user:hover {
-    border-color: #454b4f;
-
-    background: #141718;
-
-    transform: translateY(-1px);
 }
 
 .admin-user-main {
+    width: 100%;
+    max-width: 100%;
+
+    min-width: 0;
+
     display: flex;
 
     align-items: center;
 
     gap: 16px;
-
-    min-width: 0;
-}
-
-.admin-avatar {
-    width: 58px;
-    height: 58px;
-
-    min-width: 58px;
-
-    border-radius: 16px;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    overflow: hidden;
-
-    background: #1b1e20;
-
-    border:
-        1px solid
-        #303538;
-
-    font-size: 23px;
-
-    font-weight: 900;
-}
-
-.admin-avatar img {
-    width: 100%;
-    height: 100%;
-
-    object-fit: cover;
 }
 
 .admin-user-info {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 4px;
-
     min-width: 0;
+
+    overflow: hidden;
 }
 
 .admin-user-info strong {
+    display: block;
+
     font-size: 18px;
 
-    color: #f4f5f5;
-}
-
-.admin-user-info > span {
-    color: #8e969a;
-
-    font-size: 14px;
-
     overflow-wrap: anywhere;
 }
 
-.admin-badges {
-    display: flex;
-
-    flex-wrap: wrap;
-
-    gap: 7px;
-
-    margin-top: 7px;
+.admin-user-info .small {
+    overflow-wrap: anywhere;
 }
 
-
-/* =========================================================
-   ADMIN — BADGES
-   ========================================================= */
-
-.badge {
-    display: inline-flex;
-
-    align-items: center;
-
-    min-height: 25px;
-
-    padding:
-        3px 9px;
-
-    border-radius: 999px;
-
-    background: #202426;
-
-    border:
-        1px solid
-        #34393c;
-
-    color: #d7dcde;
-
-    font-size: 11px;
-
-    font-weight: 800;
-
-    letter-spacing: .5px;
+.admin-user form {
+    max-width: 100%;
 }
 
-.badge.danger {
-    background:
-        rgba(255,38,54,.10);
-
-    border-color:
-        rgba(255,38,54,.35);
-
-    color: #ff6671;
-}
-
-.badge.warning {
-    background:
-        rgba(255,190,40,.10);
-
-    border-color:
-        rgba(255,190,40,.30);
-
-    color: #ffd36a;
-}
-
-
-/* =========================================================
-   ADMIN — ACTIONS
-   ========================================================= */
-
-.admin-actions {
-    display: flex;
-
-    align-items: center;
-
-    flex-wrap: wrap;
-
-    gap: 9px;
-
-    margin-top: 17px;
-
-    padding-top: 17px;
-
-    border-top:
-        1px solid
-        #24282a;
-}
-
-.admin-actions form {
-    margin: 0;
-}
-
-.admin-actions select {
-    margin: 0;
-}
-
-.small-input {
-    min-height: 38px !important;
-
-    padding:
-        7px 12px !important;
-
-    font-size: 13px !important;
-}
-
-
-/* =========================================================
-   ADMIN — DETAILS
-   ========================================================= */
-
-.admin-details {
-    margin-top: 10px;
-
-    border-top:
-        1px solid
-        #24282a;
-}
-
-.admin-details summary {
-    padding:
-        15px 4px;
-
-    cursor: pointer;
-
-    color: #c5cbce;
-
-    font-weight: 700;
-
-    list-style: none;
-
-    user-select: none;
-}
-
-.admin-details summary::-webkit-details-marker {
-    display: none;
-}
-
-.admin-details summary::before {
-    content: "›";
-
-    display: inline-block;
-
-    margin-right: 9px;
-
-    font-size: 20px;
-
-    transition:
-        transform .2s ease;
-}
-
-.admin-details[open]
-summary::before {
-    transform:
-        rotate(90deg);
-}
-
-.admin-details summary:hover {
-    color: #fff;
-}
-
-
-/* =========================================================
-   ADMIN — FORMS
-   ========================================================= */
-
-.admin-form {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 4px;
-
-    margin-top: 10px;
-}
-
-.admin-form .input {
+.admin-user input,
+.admin-user textarea,
+.admin-user select {
     width: 100%;
-}
-
-.admin-form textarea.input {
-    min-height: 100px;
-
-    resize: vertical;
-}
-
-.admin-form .btn {
-    align-self: flex-start;
+    max-width: 100%;
 }
 
 
 /* =========================================================
-   ADMIN — NEWS / EVENTS
+   ADMIN SEARCH
    ========================================================= */
 
-.admin-list {
-    display: grid;
+.admin-search {
+    width: 100%;
 
-    grid-template-columns:
-        repeat(
-            2,
-            minmax(0,1fr)
-        );
-
-    gap: 14px;
-
-    margin-top: 22px;
+    margin-bottom: 20px;
 }
 
-.admin-card {
-    padding: 20px;
+
+/* =========================================================
+   CHAT
+   ========================================================= */
+
+.chat {
+    width: 100%;
+    max-width: 100%;
+
+    height: 420px;
+
+    overflow: auto;
+
+    background: #0e1011;
 
     border:
         1px solid
-        #292d30;
-
-    border-radius: 18px;
-
-    background: #111415;
-
-    min-width: 0;
-}
-
-.admin-card h3 {
-    margin:
-        10px 0;
-
-    font-size: 20px;
-}
-
-.admin-card p {
-    margin: 0;
-
-    color: #aeb5b8;
-
-    line-height: 1.6;
-
-    white-space: pre-wrap;
-
-    overflow-wrap: anywhere;
-}
-
-
-/* =========================================================
-   ADMIN — EMPTY
-   ========================================================= */
-
-.empty {
-    padding: 25px;
-
-    border:
-        1px dashed
-        #34393c;
+        #292d2f;
 
     border-radius: 16px;
 
-    color: #7f888c;
+    padding: 16px;
+}
 
-    text-align: center;
+.msg {
+    padding: 9px 0;
+
+    border-bottom:
+        1px solid
+        #202325;
+
+    overflow-wrap: anywhere;
 }
 
 
 /* =========================================================
-   ADMIN — SEARCH RESULTS
+   GENERAL SAFETY
    ========================================================= */
 
-#userSearchResults {
-    display: flex;
+pre,
+table {
+    max-width: 100%;
 
-    flex-direction: column;
-
-    gap: 14px;
-
-    margin-bottom: 14px;
+    overflow-x: auto;
 }
 
-.search-user {
-    margin: 0;
-}
-
-
-/* =========================================================
-   TABLET
-   ========================================================= */
-
-@media (max-width: 800px) {
-
-    .admin-page {
-        width:
-            min(
-                calc(100% - 24px),
-                680px
-            );
-
-        margin-top: 25px;
-    }
-
-    .admin-section {
-        padding: 20px;
-
-        border-radius: 18px;
-    }
-
-    .admin-head {
-        flex-direction: column;
-
-        gap: 18px;
-    }
-
-    .admin-head .btn {
-        width: 100%;
-    }
-
-    .admin-list {
-        grid-template-columns: 1fr;
-    }
-}
-
-
-/* =========================================================
-   PHONE
-   ========================================================= */
-
-@media (max-width: 600px) {
-
-    .admin-page {
-        width:
-            calc(100% - 20px);
-
-        margin:
-            20px auto
-            50px;
-    }
-
-    .admin-head {
-        margin-bottom: 25px;
-    }
-
-    .admin-head h1 {
-        font-size: 34px;
-    }
-
-    .admin-section {
-        padding: 15px;
-
-        margin-bottom: 22px;
-
-        border-radius: 16px;
-    }
-
-    .section-head h2 {
-        font-size: 25px;
-    }
-
-
-    /*
-     * На телефоне список чуть меньше,
-     * чтобы пользователю было удобно
-     * видеть остальные разделы.
-     */
-
-    .admin-users {
-        max-height: 500px;
-
-        padding-right: 5px;
-    }
-
-
-    .admin-user {
-        padding: 15px;
-
-        border-radius: 15px;
-    }
-
-    .admin-user-main {
-        align-items: flex-start;
-
-        gap: 12px;
-    }
-
-    .admin-avatar {
-        width: 48px;
-        height: 48px;
-
-        min-width: 48px;
-
-        border-radius: 13px;
-
-        font-size: 19px;
-    }
-
-    .admin-user-info strong {
-        font-size: 16px;
-    }
-
-    .admin-user-info > span {
-        font-size: 13px;
-    }
-
-    .admin-actions {
-        align-items: stretch;
-
-        flex-direction: column;
-    }
-
-    .admin-actions > .btn,
-    .admin-actions > form,
-    .admin-actions > form .btn,
-    .admin-actions > form select {
-        width: 100%;
-
-        box-sizing: border-box;
-    }
-
-    .admin-details {
-        margin-top: 4px;
-    }
-
-    .admin-form .btn {
-        width: 100%;
-    }
-
-    .admin-card {
-        padding: 16px;
-    }
-}
-
-
-/* =========================================================
-   VERY SMALL PHONE
-   ========================================================= */
-
-@media (max-width: 360px) {
-
-    .nav {
-        padding:
-            9px 9px;
-    }
-
-    .logo {
-        font-size: 18px;
-
-        letter-spacing: 1px;
-    }
-
-    .links {
-        gap: 4px;
-    }
-
-    .links > a {
-        font-size: 12px;
-    }
-
-    .links .btn,
-    .links form .btn {
-        padding:
-            7px 9px;
-
-        font-size: 12px;
-    }
-
-    .admin-page {
-        width:
-            calc(100% - 14px);
-    }
-
-    .admin-section {
-        padding: 12px;
-    }
-
-    .admin-user {
-        padding: 12px;
-    }
-
-    .admin-user-main {
-        gap: 10px;
-    }
-
-    .admin-avatar {
-        width: 43px;
-        height: 43px;
-
-        min-width: 43px;
-    }
-
-    .admin-head h1 {
-        font-size: 30px;
-    }
-
-    .otp-input {
-        letter-spacing: 3px;
-    }
-}
-
-
-/* =========================================================
-   HERO MOBILE
-   ========================================================= */
-
-@media (max-width: 600px) {
-
-    .hero {
-        min-height: 500px;
-
-        padding:
-            60px 20px;
-    }
-
-    .hero h1 {
-        font-size:
-            clamp(
-                42px,
-                15vw,
-                70px
-            );
-    }
-
-    .wrap {
-        padding:
-            35px 16px;
-    }
-
-    .grid {
-        grid-template-columns: 1fr;
-
-        gap: 13px;
-    }
-
-    .card {
-        padding: 18px;
-
-        border-radius: 15px;
-    }
-}
-
-
-/* =========================================================
-   NO HORIZONTAL SCROLL
-   ========================================================= */
-
-@media (max-width: 600px) {
-
-    table,
-    pre {
-        max-width: 100%;
-
-        overflow-x: auto;
-    }
-
-    input,
-    textarea,
-    select,
-    button {
-        max-width: 100%;
-    }
+iframe,
+video,
+canvas,
+svg {
+    max-width: 100%;
 }
 
 
@@ -1420,21 +835,8 @@ summary::before {
     display: flex;
 
     align-items: center;
+
     justify-content: center;
-
-    opacity: 1;
-
-    visibility: visible;
-}
-
-#motohub-loader.is-leaving {
-    animation:
-        mhLoaderOut
-        .65s
-        ease
-        forwards;
-
-    pointer-events: none;
 }
 
 #motohub-loader .mh-scene {
@@ -1506,6 +908,7 @@ summary::before {
     position: absolute;
 
     left: 7%;
+
     top: 7%;
 
     font-weight: 900;
@@ -1516,25 +919,17 @@ summary::before {
 
     text-shadow:
         0 3px 18px #000;
-
-    animation:
-        mhCopy
-        .9s
-        ease-out
-        forwards;
 }
 
 #motohub-loader .mh-copy strong {
+    display: block;
+
     font-size:
         clamp(
             26px,
             4vw,
             54px
         );
-
-    display: block;
-
-    color: #fff;
 }
 
 #motohub-loader .mh-copy span {
@@ -1549,6 +944,7 @@ summary::before {
     position: absolute;
 
     left: 50%;
+
     bottom: 9%;
 
     transform:
@@ -1561,9 +957,6 @@ summary::before {
         );
 
     text-align: center;
-
-    text-shadow:
-        0 2px 12px #000;
 }
 
 #motohub-loader .mh-status-title {
@@ -1591,10 +984,6 @@ summary::before {
     border:
         1px solid
         #52545a;
-
-    box-shadow:
-        0 0 25px
-        rgba(255,30,45,.16);
 }
 
 #motohub-loader .mh-bar i {
@@ -1610,10 +999,6 @@ summary::before {
             #ff1528,
             #ff4350
         );
-
-    box-shadow:
-        0 0 18px
-        rgba(255,30,45,.9);
 
     animation:
         mhProgress
@@ -1646,7 +1031,7 @@ summary::before {
 
 
 /* =========================================================
-   LOADER ANIMATIONS
+   LOADER ANIMATION
    ========================================================= */
 
 @keyframes mhScene {
@@ -1661,13 +1046,7 @@ summary::before {
             contrast(1.1);
     }
 
-    18% {
-        filter:
-            brightness(.8)
-            contrast(1.14);
-    }
-
-    55% {
+    50% {
         transform:
             scale(1.085)
             translate3d(1%,0,0);
@@ -1686,7 +1065,6 @@ summary::before {
             brightness(1.08)
             contrast(1.2);
     }
-
 }
 
 @keyframes mhProgress {
@@ -1718,7 +1096,6 @@ summary::before {
     100% {
         width: 100%;
     }
-
 }
 
 @keyframes mhScan {
@@ -1730,62 +1107,663 @@ summary::before {
     100% {
         top: 103%;
     }
-
 }
 
-@keyframes mhCopy {
 
-    0% {
-        opacity: 0;
+/* =========================================================
+   TABLET
+   ========================================================= */
 
-        transform:
-            translateY(-14px);
+@media (max-width: 850px) {
+
+    .nav {
+        padding:
+            0 20px;
+
+        gap: 12px;
     }
 
-    100% {
-        opacity: 1;
-
-        transform:
-            translateY(0);
+    .links {
+        gap: 10px;
     }
 
+    .admin-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wrap {
+        padding:
+            40px 20px;
+    }
 }
 
-@keyframes mhLoaderOut {
 
-    0% {
-        opacity: 1;
+/* =========================================================
+   PHONE
+   ========================================================= */
 
-        visibility: visible;
+@media (max-width: 600px) {
+
+    body {
+        font-size: 15px;
     }
 
-    100% {
-        opacity: 0;
 
-        visibility: hidden;
+    /* ---------------- NAV ---------------- */
+
+    .nav {
+        min-height: 64px;
+
+        padding:
+            8px 12px;
+
+        gap: 8px;
+
+        align-items: center;
+    }
+
+    .logo {
+        font-size: 20px;
+
+        letter-spacing: 1px;
+    }
+
+    .links {
+        flex: 1 1 auto;
+
+        min-width: 0;
+
+        overflow-x: auto;
+
+        overflow-y: hidden;
+
+        justify-content: flex-end;
+
+        gap: 6px;
+
+        scrollbar-width: none;
+    }
+
+    .links::-webkit-scrollbar {
+        display: none;
+    }
+
+    .links > a {
+        font-size: 13px;
+    }
+
+    .links > a.nav-hide {
+        display: none;
+    }
+
+    .links .btn,
+    .links form .btn {
+        min-height: 38px;
+
+        padding:
+            8px 11px;
+
+        font-size: 12px;
+    }
+
+
+    /* ---------------- HERO ---------------- */
+
+    .hero {
+        min-height: 500px;
+
+        padding:
+            60px 20px;
+
+        align-items: center;
+    }
+
+    .hero h1 {
+        max-width: 100%;
+
+        font-size:
+            clamp(
+                42px,
+                15vw,
+                70px
+            );
+    }
+
+    .hero .btn {
+        margin:
+            8px 6px 0 0 !important;
+    }
+
+
+    /* ---------------- WRAP ---------------- */
+
+    .wrap {
+        width: 100%;
+
+        padding:
+            35px 14px;
+    }
+
+
+    /* ---------------- GRID ---------------- */
+
+    .grid {
+        grid-template-columns: 1fr;
+
+        gap: 13px;
+    }
+
+
+    /* ---------------- CARD ---------------- */
+
+    .card {
+        width: 100%;
+        max-width: 100%;
+
+        padding: 18px;
+
+        border-radius: 15px;
+    }
+
+
+    /* ---------------- FORMS ---------------- */
+
+    .form {
+        width:
+            calc(100% - 20px);
+
+        margin:
+            35px auto;
+
+        padding:
+            22px 16px;
+
+        border-radius: 16px;
+    }
+
+    .form h1 {
+        font-size: 30px;
+    }
+
+    .input {
+        min-height: 48px;
+
+        padding:
+            12px;
+    }
+
+    .otp-input {
+        letter-spacing: 4px;
+    }
+
+
+    /* ---------------- PROFILE ---------------- */
+
+    .wrap > div[style*="grid-template-columns:minmax(0,1.4fr)"] {
+        display: flex !important;
+
+        flex-direction: column !important;
+
+        width: 100%;
+
+        max-width: 100%;
+
+        gap: 16px !important;
+    }
+
+    .wrap > div[style*="grid-template-columns:minmax(0,1.4fr)"] > section,
+    .wrap > div[style*="grid-template-columns:minmax(0,1.4fr)"] > aside {
+        width: 100% !important;
+
+        max-width: 100% !important;
+
+        min-width: 0 !important;
+    }
+
+    .avatar-lg {
+        width: 96px;
+        height: 96px;
+    }
+
+
+    /* ---------------- PROFILE STATS ---------------- */
+
+    .wrap .grid[style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns:
+            1fr 1fr !important;
+
+        gap: 8px !important;
+    }
+
+    .wrap .grid[style*="grid-template-columns:1fr 1fr"] .card {
+        padding:
+            13px;
+    }
+
+
+    /* ---------------- ADMIN ---------------- */
+
+    .admin-grid {
+        grid-template-columns: 1fr;
+
+        gap: 14px;
+    }
+
+    .admin-users {
+        max-height: 500px;
+
+        padding-right: 5px;
+    }
+
+    .admin-user {
+        padding: 15px;
+
+        border-radius: 15px;
+    }
+
+    .admin-user-main {
+        align-items: flex-start;
+
+        gap: 12px;
+    }
+
+    .admin-actions {
+        width: 100%;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 8px;
+    }
+
+    .admin-actions .btn,
+    .admin-actions form,
+    .admin-actions select {
+        width: 100%;
+
+        max-width: 100%;
+    }
+
+
+    /* ---------------- CHAT ---------------- */
+
+    .chatapp {
+        width: 100% !important;
+
+        max-width: 100% !important;
+
+        grid-template-columns:
+            105px minmax(0,1fr) !important;
+
+        height:
+            calc(
+                100dvh - 64px
+            ) !important;
+    }
+
+    .side {
+        min-width: 0;
+
+        width: 100%;
+
+        overflow-x: hidden;
+    }
+
+    .sidehead {
+        padding:
+            9px;
+    }
+
+    .sidehead > b {
+        font-size: 13px;
+    }
+
+    .search {
+        width: 100%;
+
+        max-width: 100%;
+
+        padding:
+            9px 7px;
+
+        font-size: 12px;
+    }
+
+    .tabs {
+        flex-direction: column;
+
+        gap: 5px;
+    }
+
+    .tab {
+        width: 100%;
+
+        padding:
+            8px 5px;
+
+        font-size: 11px;
+    }
+
+    .person {
+        width: 100%;
+
+        min-width: 0;
+
+        padding:
+            10px 6px;
+
+        gap: 4px;
+
+        overflow: hidden;
+    }
+
+    .personleft {
+        min-width: 0;
+
+        width: 100%;
+
+        gap: 4px;
+    }
+
+    .person .pname {
+        min-width: 0;
+
+        display: block;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+    }
+
+    .person .pname b {
+        display: block;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+
+        font-size: 11px;
+    }
+
+    .person .pname .small {
+        display: block;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+
+        font-size: 9px;
+    }
+
+    .miniavatar {
+        width: 31px;
+        height: 31px;
+
+        min-width: 31px;
+    }
+
+    .dot {
+        width: 6px;
+        height: 6px;
+
+        min-width: 6px;
+
+        margin-right: 0;
+    }
+
+    .badge {
+        flex: 0 0 auto;
+
+        padding:
+            2px 5px;
+
+        font-size: 9px;
+    }
+
+    .chathead {
+        min-width: 0;
+
+        padding:
+            13px 12px;
+
+        overflow: hidden;
+    }
+
+    .chathead b {
+        display: block;
+
+        max-width: 100%;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+    }
+
+    .messages {
+        min-width: 0;
+
+        padding:
+            10px;
+    }
+
+    .bubble {
+        max-width: 88%;
+
+        padding:
+            9px 10px;
+
+        overflow-wrap: anywhere;
+    }
+
+    .composer {
+        width: 100%;
+
+        min-width: 0;
+
+        padding:
+            9px;
+
+        gap: 6px;
+    }
+
+    .composer .input {
+        min-width: 0;
+
+        flex: 1 1 auto;
+    }
+
+    .composer .btn {
+        flex: 0 0 auto;
+
+        padding:
+            9px 10px;
+
+        font-size: 12px;
+    }
+
+
+    /* ---------------- NO HORIZONTAL SCROLL ---------------- */
+
+    section,
+    article,
+    main,
+    aside,
+    header,
+    footer,
+    div {
+        min-width: 0;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+        overflow-wrap: anywhere;
     }
 
 }
 
 
 /* =========================================================
-   LOADER MOBILE
+   SMALL PHONE — 360px
    ========================================================= */
 
-@media (max-width: 700px) {
+@media (max-width: 360px) {
 
-    #motohub-loader .mh-copy {
-        left: 5%;
-
-        top: 5%;
+    .nav {
+        padding:
+            7px 9px;
     }
 
-    #motohub-loader .mh-status {
-        bottom: 7%;
-
-        width: 86vw;
+    .logo {
+        font-size: 18px;
     }
 
+    .links {
+        gap: 4px;
+    }
+
+    .links > a {
+        font-size: 11px;
+    }
+
+    .links .btn,
+    .links form .btn {
+        padding:
+            7px 9px;
+
+        font-size: 11px;
+    }
+
+    .wrap {
+        padding:
+            30px 10px;
+    }
+
+    .card {
+        padding:
+            15px;
+    }
+
+    .hero {
+        padding:
+            50px 16px;
+    }
+
+    .hero h1 {
+        font-size:
+            42px;
+    }
+
+    .form {
+        width:
+            calc(100% - 12px);
+
+        padding:
+            20px 13px;
+    }
+
+    .admin-user {
+        padding:
+            12px;
+    }
+
+    .admin-user-main {
+        gap: 8px;
+    }
+
+    .avatar {
+        width: 42px;
+        height: 42px;
+    }
+
+    .chatapp {
+        grid-template-columns:
+            96px minmax(0,1fr) !important;
+    }
+
+    .composer .btn {
+        font-size: 0;
+    }
+
+    .composer .btn::after {
+        content: "➤";
+
+        font-size: 16px;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL PHONE — 320px
+   ========================================================= */
+
+@media (max-width: 330px) {
+
+    .logo {
+        font-size: 17px;
+    }
+
+    .links > a {
+        font-size: 10px;
+    }
+
+    .links .btn,
+    .links form .btn {
+        padding:
+            6px 8px;
+
+        font-size: 10px;
+    }
+
+    .wrap {
+        padding:
+            26px 8px;
+    }
+
+    .card {
+        padding:
+            13px;
+    }
+
+    .chatapp {
+        grid-template-columns:
+            88px minmax(0,1fr) !important;
+    }
+
+    .sidehead {
+        padding:
+            7px;
+    }
+
+    .person {
+        padding:
+            8px 4px;
+    }
+
+    .miniavatar {
+        width: 28px;
+        height: 28px;
+
+        min-width: 28px;
+    }
+
+    .person .pname b {
+        font-size: 10px;
+    }
+
+    .person .pname .small {
+        font-size: 8px;
+    }
 }
 
 
@@ -1797,8 +1775,7 @@ summary::before {
 
     #motohub-loader .mh-scene,
     #motohub-loader .mh-bar i,
-    #motohub-loader .mh-scan,
-    #motohub-loader .mh-copy {
+    #motohub-loader .mh-scan {
         animation: none;
     }
 
@@ -1809,7 +1786,6 @@ summary::before {
     #motohub-loader {
         display: none !important;
     }
-
 }
 
 </style>
@@ -1900,7 +1876,6 @@ summary::before {
             События
         </a>
 
-
         <a
             class="nav-hide"
             href="/#news"
@@ -1914,7 +1889,6 @@ summary::before {
             <a href="/profile">
                 👤 Профиль
             </a>
-
 
             <a
                 href="/chat"
@@ -1965,14 +1939,14 @@ summary::before {
 
 
 <!-- =======================================================
-     PAGE CONTENT
+     CONTENT
      ======================================================= -->
 
 {% block content %}{% endblock %}
 
 
 <!-- =======================================================
-     CHAT
+     CHAT WINDOW
      ======================================================= -->
 
 <script>
@@ -1980,7 +1954,6 @@ summary::before {
 function openChat(event) {
 
     event.preventDefault();
-
 
     if (window.innerWidth > 750) {
 
@@ -1993,7 +1966,6 @@ function openChat(event) {
         return false;
     }
 
-
     window.location.href = "/chat";
 
     return false;
@@ -2003,7 +1975,7 @@ function openChat(event) {
 
 
 <!-- =======================================================
-     LOADING SCRIPT
+     LOADER
      ======================================================= -->
 
 <script>
@@ -2014,7 +1986,6 @@ function openChat(event) {
         document.getElementById(
             "motohub-loader"
         );
-
 
     if (!loader) {
         return;
@@ -2111,9 +2082,14 @@ function openChat(event) {
             }
 
 
-            loader.classList.add(
-                "is-leaving"
-            );
+            loader.style.pointerEvents =
+                "none";
+
+            loader.style.transition =
+                "opacity .65s ease";
+
+            loader.style.opacity =
+                "0";
 
 
             setTimeout(
