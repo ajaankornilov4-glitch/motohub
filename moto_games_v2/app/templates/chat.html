@@ -1,17 +1,3134 @@
-{% extends "base.html" %}{% block title %}MotoHub — Чат{% endblock %}{% block content %}
-<style>.chatapp{height:calc(100vh - 72px);display:grid;grid-template-columns:300px 1fr;background:#0b0d0e}.side{border-right:1px solid #25292b;background:#111314;overflow:auto}.sidehead{padding:20px;border-bottom:1px solid #25292b}.search{width:100%;padding:12px;border-radius:10px;background:#090a0b;color:#fff;border:1px solid #333}.tabs{display:flex;gap:8px;margin-top:12px}.tab{flex:1;padding:9px;border:1px solid #333;background:#171a1b;color:#bbb;border-radius:9px;cursor:pointer}.tab.active{background:#b8ff00;color:#090a0b;font-weight:800}.person{padding:12px 14px;border-bottom:1px solid #202325;cursor:pointer;display:flex;justify-content:space-between;gap:10px}.personleft{display:flex;gap:10px;align-items:center;min-width:0}.miniavatar{width:40px;height:40px;border-radius:50%;object-fit:cover;background:#222;flex:0 0 auto}.miniavatar.placeholder{display:grid;place-items:center}.person:hover,.person.sel{background:#1b1f20}.dot{width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;margin-right:7px}.dot.on{background:#b8ff00}.badge{background:#b8ff00;color:#090a0b;border-radius:20px;padding:3px 7px;font-size:11px;font-weight:900}.mainchat{display:flex;flex-direction:column;min-width:0}.chathead{padding:18px 24px;border-bottom:1px solid #25292b;background:#101213}.messages{flex:1;overflow:auto;padding:22px}.bubble{max-width:70%;padding:10px 13px;border-radius:14px;background:#171b1c;margin:7px 0}.mine{margin-left:auto;background:#b8ff00;color:#090a0b}.meta{font-size:11px;opacity:.6;margin-top:5px}.composer{display:flex;gap:10px;padding:16px;border-top:1px solid #25292b}.composer .input{margin:0}.empty{height:100%;display:grid;place-items:center;color:#777;text-align:center;padding:30px}@media(max-width:750px){.chatapp{grid-template-columns:100px 1fr}.sidehead{padding:10px}.person{padding:12px 8px}.person .pname{display:none}.tabs{flex-direction:column}.messages{padding:12px}.bubble{max-width:88%}}</style>
-<div class="chatapp"><aside class="side"><div class="sidehead"><b>Сообщения</b><input id="search" class="search" placeholder="Поиск..." style="margin-top:12px"><div class="tabs"><button class="tab active" data-tab="people">Личка</button><button class="tab" data-tab="public">Клуб</button></div></div><div id="people"></div></aside><main class="mainchat"><div class="chathead"><b id="chatTitle">Общий чат клуба</b><div class="small" id="chatStatus">Все участники</div></div><div id="messages" class="messages"></div><form id="composer" class="composer"><input id="text" class="input" autocomplete="off" placeholder="Написать сообщение..."><button class="btn">Отправить</button></form></main></div>
+{% extends "base.html" %}
+
+{% block title %}Чат — MotoHub{% endblock %}
+
+{% block content %}
+
+<style>
+/* =====================================================
+   MOTOHUB TELEGRAM-STYLE CHAT
+   ===================================================== */
+
+.chat-page {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px 0 30px;
+}
+
+.chatapp {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    height: calc(100vh - 150px);
+    min-height: 560px;
+
+    background:
+        radial-gradient(
+            circle at 70% 20%,
+            rgba(255, 38, 54, .06),
+            transparent 30%
+        ),
+        #101214;
+
+    border: 1px solid #292d30;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow:
+        0 20px 70px rgba(0,0,0,.35);
+}
+
+
+/* =====================================================
+   LEFT SIDE
+   ===================================================== */
+
+.chat-side {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+
+    background: #0d0f10;
+    border-right: 1px solid #292d30;
+}
+
+.chat-side-head {
+    padding: 18px;
+    border-bottom: 1px solid #292d30;
+}
+
+.chat-side-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.chat-side-title h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -.4px;
+}
+
+.chat-online {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    font-size: 11px;
+    color: #8e969a;
+}
+
+.chat-online-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #38d26f;
+    box-shadow: 0 0 10px rgba(56,210,111,.45);
+}
+
+.chat-search {
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 11px 13px;
+
+    border: 1px solid #2b3033;
+    border-radius: 12px;
+
+    outline: none;
+
+    background: #171a1c;
+    color: #fff;
+
+    font-size: 14px;
+
+    transition:
+        border-color .2s,
+        background .2s;
+}
+
+.chat-search::placeholder {
+    color: #747c80;
+}
+
+.chat-search:focus {
+    border-color: #454b4f;
+    background: #1b1e20;
+}
+
+
+/* =====================================================
+   USER LIST
+   ===================================================== */
+
+.chat-users {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.chat-users::-webkit-scrollbar {
+    width: 7px;
+}
+
+.chat-users::-webkit-scrollbar-thumb {
+    background: #2c3134;
+    border-radius: 20px;
+}
+
+.chat-user {
+    width: 100%;
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 12px 15px;
+
+    border: 0;
+    border-bottom: 1px solid rgba(255,255,255,.035);
+
+    background: transparent;
+    color: #fff;
+
+    text-align: left;
+    cursor: pointer;
+
+    transition:
+        background .15s,
+        transform .15s;
+}
+
+.chat-user:hover {
+    background: #171a1c;
+}
+
+.chat-user.active {
+    background: #202427;
+}
+
+.chat-avatar {
+    position: relative;
+
+    flex: 0 0 46px;
+
+    width: 46px;
+    height: 46px;
+
+    border-radius: 50%;
+
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            145deg,
+            #292d30,
+            #17191b
+        );
+
+    color: #d8dcde;
+
+    font-weight: 900;
+    font-size: 16px;
+}
+
+.chat-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.chat-avatar-online {
+    position: absolute;
+    right: 1px;
+    bottom: 1px;
+
+    width: 11px;
+    height: 11px;
+
+    border: 2px solid #0d0f10;
+    border-radius: 50%;
+
+    background: #697176;
+}
+
+.chat-avatar-online.online {
+    background: #35d36d;
+}
+
+.chat-user-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.chat-user-name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    min-width: 0;
+
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.chat-user-name span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-user-role {
+    flex: 0 0 auto;
+
+    font-size: 9px;
+    font-weight: 800;
+
+    padding: 3px 5px;
+
+    border-radius: 5px;
+
+    color: #ff5a65;
+    background: rgba(255,38,54,.1);
+}
+
+.chat-user-sub {
+    margin-top: 4px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: #7e878b;
+    font-size: 12px;
+}
+
+.chat-unread {
+    min-width: 20px;
+    height: 20px;
+
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #ff2636;
+    color: white;
+
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.chat-unread.show {
+    display: flex;
+}
+
+
+/* =====================================================
+   RIGHT CHAT
+   ===================================================== */
+
+.chat-main {
+    min-width: 0;
+    min-height: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    position: relative;
+
+    background:
+        radial-gradient(
+            circle at 20% 10%,
+            rgba(255,255,255,.025),
+            transparent 30%
+        ),
+        #111416;
+}
+
+
+/* =====================================================
+   CHAT HEADER
+   ===================================================== */
+
+.chat-head {
+    min-height: 72px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 11px 18px;
+
+    border-bottom: 1px solid #292d30;
+
+    background: rgba(13,15,16,.94);
+
+    backdrop-filter: blur(15px);
+}
+
+.chat-back {
+    display: none;
+
+    width: 38px;
+    height: 38px;
+
+    border: 0;
+    border-radius: 11px;
+
+    background: #1b1e20;
+    color: white;
+
+    font-size: 20px;
+
+    cursor: pointer;
+}
+
+.chat-head-avatar {
+    width: 43px;
+    height: 43px;
+
+    flex: 0 0 43px;
+
+    overflow: hidden;
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #252a2d;
+
+    color: white;
+    font-weight: 900;
+}
+
+.chat-head-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.chat-head-info {
+    min-width: 0;
+}
+
+.chat-head-name {
+    font-size: 15px;
+    font-weight: 900;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-head-status {
+    margin-top: 3px;
+
+    color: #727b80;
+    font-size: 11px;
+}
+
+.chat-head-status.online {
+    color: #43d875;
+}
+
+
+/* =====================================================
+   EMPTY STATE
+   ===================================================== */
+
+.chat-empty {
+    flex: 1;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 30px;
+
+    text-align: center;
+}
+
+.chat-empty-inner {
+    max-width: 330px;
+}
+
+.chat-empty-icon {
+    width: 76px;
+    height: 76px;
+
+    margin: 0 auto 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 22px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,38,54,.18),
+            rgba(255,38,54,.04)
+        );
+
+    border: 1px solid rgba(255,38,54,.18);
+
+    font-size: 35px;
+}
+
+.chat-empty h2 {
+    margin: 0 0 8px;
+
+    font-size: 21px;
+    font-weight: 900;
+}
+
+.chat-empty p {
+    margin: 0;
+
+    color: #747c80;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+
+/* =====================================================
+   MESSAGES
+   ===================================================== */
+
+.chat-messages {
+    flex: 1;
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 20px 20px 12px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.chat-messages::-webkit-scrollbar {
+    width: 7px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: #2c3134;
+    border-radius: 20px;
+}
+
+.chat-message-row {
+    width: 100%;
+
+    display: flex;
+
+    box-sizing: border-box;
+}
+
+.chat-message-row.mine {
+    justify-content: flex-end;
+}
+
+.chat-message {
+    max-width: min(70%, 650px);
+
+    min-width: 0;
+
+    padding: 8px 11px 6px;
+
+    border-radius: 15px;
+
+    background: #202427;
+    border: 1px solid #2a2f32;
+
+    box-shadow:
+        0 3px 12px rgba(0,0,0,.12);
+}
+
+.chat-message.mine {
+    background:
+        linear-gradient(
+            145deg,
+            #5e1820,
+            #39151a
+        );
+
+    border-color: #6a242c;
+}
+
+.chat-message-author {
+    margin-bottom: 4px;
+
+    color: #ff5965;
+
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.chat-message-text {
+    color: #f1f3f4;
+
+    font-size: 14px;
+    line-height: 1.45;
+
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.chat-message-meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 5px;
+
+    margin-top: 3px;
+
+    color: #747d81;
+
+    font-size: 9px;
+}
+
+.chat-message.mine .chat-message-meta {
+    color: #c18b91;
+}
+
+
+/* =====================================================
+   MEDIA
+   ===================================================== */
+
+.chat-media {
+    margin: -2px -3px 7px;
+
+    max-width: 100%;
+
+    overflow: hidden;
+
+    border-radius: 11px;
+
+    background: #080909;
+}
+
+.chat-media img {
+    display: block;
+
+    width: 100%;
+    max-width: 560px;
+
+    max-height: 430px;
+
+    object-fit: contain;
+
+    cursor: pointer;
+}
+
+.chat-media video {
+    display: block;
+
+    width: 100%;
+    max-width: 600px;
+
+    max-height: 450px;
+
+    background: #000;
+}
+
+.chat-file-name {
+    padding: 7px 9px;
+
+    color: #8f989c;
+
+    font-size: 10px;
+
+    word-break: break-word;
+}
+
+
+/* =====================================================
+   COMPOSER
+   ===================================================== */
+
+.chat-composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+
+    padding: 10px 14px 14px;
+
+    border-top: 1px solid #292d30;
+
+    background: #0d0f10;
+}
+
+.chat-attach {
+    width: 42px;
+    height: 42px;
+
+    flex: 0 0 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #2b3033;
+    border-radius: 12px;
+
+    background: #171a1c;
+    color: #b6bdc0;
+
+    font-size: 20px;
+
+    cursor: pointer;
+
+    transition:
+        background .15s,
+        color .15s,
+        border-color .15s;
+}
+
+.chat-attach:hover {
+    color: white;
+    border-color: #454b4f;
+    background: #1d2022;
+}
+
+.chat-input-wrap {
+    min-width: 0;
+    flex: 1;
+
+    display: flex;
+    align-items: flex-end;
+
+    border: 1px solid #2b3033;
+    border-radius: 14px;
+
+    background: #171a1c;
+
+    transition: border-color .2s;
+}
+
+.chat-input-wrap:focus-within {
+    border-color: #464d51;
+}
+
+.chat-input {
+    width: 100%;
+    min-height: 42px;
+    max-height: 130px;
+
+    box-sizing: border-box;
+
+    resize: none;
+
+    padding: 11px 13px;
+
+    border: 0;
+    outline: 0;
+
+    background: transparent;
+    color: white;
+
+    font: inherit;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.chat-input::placeholder {
+    color: #70787c;
+}
+
+.chat-send {
+    width: 42px;
+    height: 42px;
+
+    flex: 0 0 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 0;
+    border-radius: 12px;
+
+    background: #ff2636;
+    color: white;
+
+    font-size: 18px;
+    font-weight: 900;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 6px 20px rgba(255,38,54,.18);
+
+    transition:
+        transform .15s,
+        filter .15s;
+}
+
+.chat-send:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
+.chat-send:active {
+    transform: translateY(0);
+}
+
+.chat-send:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+
+/* =====================================================
+   UPLOAD PREVIEW
+   ===================================================== */
+
+.chat-upload-preview {
+    display: none;
+
+    padding: 8px 14px;
+
+    border-top: 1px solid #292d30;
+
+    background: #121516;
+}
+
+.chat-upload-preview.show {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.preview-thumb {
+    width: 48px;
+    height: 48px;
+
+    overflow: hidden;
+
+    border-radius: 9px;
+
+    background: #080909;
+}
+
+.preview-thumb img,
+.preview-thumb video {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+.preview-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.preview-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: #ddd;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.preview-size {
+    margin-top: 3px;
+
+    color: #6f787c;
+    font-size: 10px;
+}
+
+.preview-remove {
+    width: 32px;
+    height: 32px;
+
+    border: 0;
+    border-radius: 9px;
+
+    background: #24282a;
+    color: #aaa;
+
+    cursor: pointer;
+}
+
+
+/* =====================================================
+   TOAST
+   ===================================================== */
+
+.chat-toast {
+    position: fixed;
+
+    left: 50%;
+    bottom: 25px;
+
+    z-index: 9999;
+
+    transform:
+        translate(-50%, 20px);
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    padding: 11px 16px;
+
+    border: 1px solid #343a3d;
+    border-radius: 12px;
+
+    background: #171a1c;
+    color: white;
+
+    box-shadow:
+        0 15px 40px rgba(0,0,0,.45);
+
+    font-size: 12px;
+
+    transition:
+        opacity .2s,
+        transform .2s;
+}
+
+.chat-toast.show {
+    opacity: 1;
+
+    transform:
+        translate(-50%, 0);
+}
+
+
+/* =====================================================
+   MOBILE
+   ===================================================== */
+
+@media (max-width: 800px) {
+
+    .chat-page {
+        padding: 0;
+        margin: 0;
+
+        height: calc(100vh - 80px);
+    }
+
+    .chatapp {
+        position: relative;
+
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+
+        display: block;
+
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+    }
+
+    .chat-side {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+
+        border-right: 0;
+
+        transition:
+            transform .25s ease;
+    }
+
+    .chat-main {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+
+        transform:
+            translateX(100%);
+
+        transition:
+            transform .25s ease;
+    }
+
+    .chatapp.mobile-chat-open .chat-side {
+        transform:
+            translateX(-20%);
+    }
+
+    .chatapp.mobile-chat-open .chat-main {
+        transform:
+            translateX(0);
+    }
+
+    .chat-back {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chat-head {
+        min-height: 62px;
+        padding: 8px 11px;
+    }
+
+    .chat-messages {
+        padding: 14px 10px 9px;
+    }
+
+    .chat-message {
+        max-width: 84%;
+    }
+
+    .chat-composer {
+        padding:
+            8px
+            8px
+            max(
+                8px,
+                env(safe-area-inset-bottom)
+            );
+    }
+
+    .chat-attach,
+    .chat-send {
+        width: 40px;
+        height: 40px;
+        flex-basis: 40px;
+    }
+
+    .chat-input {
+        min-height: 40px;
+    }
+
+    .chat-side-head {
+        padding:
+            14px
+            12px;
+    }
+}
+
+
+/* =====================================================
+   VERY SMALL PHONES
+   ===================================================== */
+
+@media (max-width: 390px) {
+
+    .chat-side-title h1 {
+        font-size: 20px;
+    }
+
+    .chat-user {
+        padding: 10px 11px;
+    }
+
+    .chat-avatar {
+        width: 42px;
+        height: 42px;
+        flex-basis: 42px;
+    }
+
+    .chat-message {
+        max-width: 89%;
+    }
+
+    .chat-message-text {
+        font-size: 13px;
+    }
+
+    .chat-attach {
+        font-size: 18px;
+    }
+}
+</style>
+
+
+<div class="chat-page">
+
+    <div
+        class="chatapp"
+        id="chatApp"
+    >
+
+        <!-- =================================================
+             LEFT — DIALOGS
+             ================================================= -->
+
+        <aside class="chat-side">
+
+            <div class="chat-side-head">
+
+                <div class="chat-side-title">
+
+                    <h1>Чаты</h1>
+
+                    <div class="chat-online">
+                        <span
+                            class="chat-online-dot"
+                        ></span>
+
+                        <span id="onlineCount">
+                            онлайн
+                        </span>
+                    </div>
+
+                </div>
+
+                <input
+                    id="chatSearch"
+                    class="chat-search"
+                    type="search"
+                    placeholder="Поиск участников..."
+                    autocomplete="off"
+                >
+
+            </div>
+
+
+            <div
+                class="chat-users"
+                id="chatUsers"
+            ></div>
+
+        </aside>
+
+
+        <!-- =================================================
+             RIGHT — CHAT
+             ================================================= -->
+
+        <main class="chat-main">
+
+            <header
+                class="chat-head"
+                id="chatHead"
+            >
+
+                <button
+                    type="button"
+                    class="chat-back"
+                    id="chatBack"
+                    aria-label="Назад"
+                >
+                    ←
+                </button>
+
+
+                <div
+                    class="chat-head-avatar"
+                    id="chatHeadAvatar"
+                >
+                    💬
+                </div>
+
+
+                <div class="chat-head-info">
+
+                    <div
+                        class="chat-head-name"
+                        id="chatHeadName"
+                    >
+                        MotoHub
+                    </div>
+
+                    <div
+                        class="chat-head-status"
+                        id="chatHeadStatus"
+                    >
+                        Выберите участника
+                    </div>
+
+                </div>
+
+            </header>
+
+
+            <!-- =================================================
+                 EMPTY
+                 ================================================= -->
+
+            <section
+                class="chat-empty"
+                id="chatEmpty"
+            >
+
+                <div class="chat-empty-inner">
+
+                    <div class="chat-empty-icon">
+                        💬
+                    </div>
+
+                    <h2>
+                        MotoHub Chat
+                    </h2>
+
+                    <p>
+                        Выберите участника слева,
+                        чтобы начать личный разговор.
+                    </p>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 MESSAGES
+                 ================================================= -->
+
+            <section
+                class="chat-messages"
+                id="chatMessages"
+                style="display:none"
+            ></section>
+
+
+            <!-- =================================================
+                 PREVIEW
+                 ================================================= -->
+
+            <div
+                class="chat-upload-preview"
+                id="uploadPreview"
+            >
+
+                <div
+                    class="preview-thumb"
+                    id="previewThumb"
+                ></div>
+
+                <div class="preview-info">
+
+                    <div
+                        class="preview-name"
+                        id="previewName"
+                    ></div>
+
+                    <div
+                        class="preview-size"
+                        id="previewSize"
+                    ></div>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="preview-remove"
+                    id="previewRemove"
+                >
+                    ✕
+                </button>
+
+            </div>
+
+
+            <!-- =================================================
+                 COMPOSER
+                 ================================================= -->
+
+            <form
+                class="chat-composer"
+                id="chatComposer"
+                style="display:none"
+            >
+
+                <input
+                    type="file"
+                    id="chatFile"
+                    accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                    hidden
+                >
+
+                <button
+                    type="button"
+                    class="chat-attach"
+                    id="chatAttach"
+                    title="Фото или видео"
+                >
+                    📎
+                </button>
+
+
+                <div class="chat-input-wrap">
+
+                    <textarea
+                        id="chatInput"
+                        class="chat-input"
+                        rows="1"
+                        placeholder="Написать сообщение..."
+                    ></textarea>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="chat-send"
+                    id="chatSend"
+                    title="Отправить"
+                >
+                    ➤
+                </button>
+
+            </form>
+
+        </main>
+
+    </div>
+
+</div>
+
+
+<div
+    class="chat-toast"
+    id="chatToast"
+></div>
+
+
 <script>
-const me={{user.id}}, myEmail={{user.email|tojson}}; let users=[], selected=null, mode='public', ws=null, online=new Set(); const people=document.getElementById('people'), messages=document.getElementById('messages');
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
-function name(u){return u.display_name||u.email.split('@')[0]}
-function renderPeople(filter=''){people.innerHTML=users.filter(u=>(name(u)+' '+u.email).toLowerCase().includes(filter.toLowerCase())).map(u=>`<div class="person ${selected&&selected.id===u.id?'sel':''}" data-id="${u.id}"><div class="personleft">${u.avatar_url?`<img class="miniavatar" src="${esc(u.avatar_url)}">`:`<div class="miniavatar placeholder">🏍️</div>`}<span class="dot ${online.has(u.id)?'on':''}"></span><span class="pname"><b>${esc(name(u))}</b><br><span class="small">${esc(u.motorcycle||u.email)}</span></span></div><span class="badge" id="badge-${u.id}" style="display:none">0</span></div>`).join('');document.querySelectorAll('.person').forEach(x=>x.onclick=()=>selectUser(+x.dataset.id))}
-async function loadUsers(){users=await fetch('/api/chat/users').then(r=>r.json());renderPeople(document.getElementById('search').value);loadUnread()}
-async function loadUnread(){let a=await fetch('/api/chat/unread').then(r=>r.json());a.forEach(x=>{let u=users.find(u=>u.email===x.email);if(u){let b=document.getElementById('badge-'+u.id);if(b){b.textContent=x.count;b.style.display='inline-block'}}})}
-function add(m){let mine=m.email===myEmail;let d=document.createElement('div');d.className='bubble '+(mine?'mine':'');d.innerHTML=`<b>${mine?'Вы':esc(m.display_name||m.email)}</b><div>${esc(m.text)}</div><div class="meta">${new Date(m.created_at+'Z').toLocaleString()}</div>`;messages.appendChild(d);messages.scrollTop=messages.scrollHeight}
-async function publicLoad(){mode='public';selected=null;document.getElementById('chatTitle').textContent='Общий чат клуба';document.getElementById('chatStatus').textContent='Все участники';messages.innerHTML='';if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'request_public'}))}
-async function selectUser(id){selected=users.find(u=>u.id===id);mode='dm';document.getElementById('chatTitle').textContent=name(selected);document.getElementById('chatStatus').textContent=online.has(id)?'● онлайн':'○ офлайн';messages.innerHTML='';let arr=await fetch('/api/chat/messages/'+id).then(r=>r.json());arr.forEach(add);await fetch('/api/chat/read/'+id,{method:'POST'});let b=document.getElementById('badge-'+id);if(b)b.style.display='none';renderPeople(document.getElementById('search').value)}
-function connect(){ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/chat');ws.onmessage=e=>{let x=JSON.parse(e.data);if(x.type==='presence'){online=new Set(x.online);renderPeople(document.getElementById('search').value);if(selected)document.getElementById('chatStatus').textContent=online.has(selected.id)?'● онлайн':'○ офлайн';return}if(x.type==='public'){if(mode==='public')add(x.message);return}if(x.type==='dm'){let m=x.message;let sender=users.find(u=>u.email===m.email);let belongs=mode==='dm'&&selected&&((m.email===myEmail&&m.recipient_id===selected.id)||(sender&&sender.id===selected.id));if(belongs){add(m);if(m.email!==myEmail) fetch('/api/chat/read/'+selected.id,{method:'POST'});}else if(m.email!==myEmail&&sender){let b=document.getElementById('badge-'+sender.id);if(b){b.textContent=+(b.textContent||0)+1;b.style.display='inline-block'}}}};ws.onclose=()=>setTimeout(connect,1500)}
-document.getElementById('composer').onsubmit=e=>{e.preventDefault();let t=document.getElementById('text');if(!t.value.trim()||!ws||ws.readyState!==1)return;ws.send(JSON.stringify({text:t.value,recipient_id:mode==='dm'&&selected?selected.id:null}));t.value=''};
-document.getElementById('search').oninput=e=>renderPeople(e.target.value);document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(b.dataset.tab==='public')publicLoad();else{mode='dm';document.getElementById('chatTitle').textContent='Личные сообщения';messages.innerHTML='<div class="empty">Выберите участника слева, чтобы начать личную переписку.</div>'}});loadUsers();connect();
-</script>{% endblock %}
+(function () {
+
+    "use strict";
+
+
+    /* =====================================================
+       STATE
+       ===================================================== */
+
+    const currentUserEmail =
+        {{ user.email|tojson }};
+
+    const currentUserId =
+        {{ user.id|tojson }};
+
+    let users = [];
+
+    let selectedUser = null;
+
+    let socket = null;
+
+    let uploadedFile = null;
+
+    let onlineUsers = new Set();
+
+    let reconnectTimer = null;
+
+
+    /* =====================================================
+       ELEMENTS
+       ===================================================== */
+
+    const app =
+        document.getElementById(
+            "chatApp"
+        );
+
+    const usersBox =
+        document.getElementById(
+            "chatUsers"
+        );
+
+    const search =
+        document.getElementById(
+            "chatSearch"
+        );
+
+    const messages =
+        document.getElementById(
+            "chatMessages"
+        );
+
+    const empty =
+        document.getElementById(
+            "chatEmpty"
+        );
+
+    const composer =
+        document.getElementById(
+            "chatComposer"
+        );
+
+    const input =
+        document.getElementById(
+            "chatInput"
+        );
+
+    const send =
+        document.getElementById(
+            "chatSend"
+        );
+
+    const attach =
+        document.getElementById(
+            "chatAttach"
+        );
+
+    const file =
+        document.getElementById(
+            "chatFile"
+        );
+
+    const uploadPreview =
+        document.getElementById(
+            "uploadPreview"
+        );
+
+    const previewThumb =
+        document.getElementById(
+            "previewThumb"
+        );
+
+    const previewName =
+        document.getElementById(
+            "previewName"
+        );
+
+    const previewSize =
+        document.getElementById(
+            "previewSize"
+        );
+
+    const previewRemove =
+        document.getElementById(
+            "previewRemove"
+        );
+
+    const back =
+        document.getElementById(
+            "chatBack"
+        );
+
+    const headAvatar =
+        document.getElementById(
+            "chatHeadAvatar"
+        );
+
+    const headName =
+        document.getElementById(
+            "chatHeadName"
+        );
+
+    const headStatus =
+        document.getElementById(
+            "chatHeadStatus"
+        );
+
+    const onlineCount =
+        document.getElementById(
+            "onlineCount"
+        );
+
+    const toast =
+        document.getElementById(
+            "chatToast"
+        );
+
+
+    /* =====================================================
+       TOAST
+       ===================================================== */
+
+    function showToast(text) {
+
+        toast.textContent = text;
+
+        toast.classList.add(
+            "show"
+        );
+
+        clearTimeout(
+            toast._timer
+        );
+
+        toast._timer =
+            setTimeout(
+                function () {
+
+                    toast.classList.remove(
+                        "show"
+                    );
+
+                },
+                2600
+            );
+    }
+
+
+    /* =====================================================
+       AVATAR
+       ===================================================== */
+
+    function avatarHtml(
+        user,
+        online = false
+    ) {
+
+        let avatar = "";
+
+        if (
+            user
+            && user.avatar_url
+        ) {
+
+            avatar =
+                `<img
+                    src="${escapeHtml(
+                        user.avatar_url
+                    )}"
+                    alt=""
+                >`;
+
+        } else {
+
+            const name =
+                (
+                    user.display_name
+                    || user.email
+                    || "?"
+                )
+                .trim();
+
+            const letter =
+                name
+                    .charAt(0)
+                    .toUpperCase();
+
+            avatar =
+                `<span>${escapeHtml(
+                    letter
+                )}</span>`;
+        }
+
+        return `
+            ${avatar}
+
+            <span
+                class="chat-avatar-online ${
+                    online
+                        ? "online"
+                        : ""
+                }"
+            ></span>
+        `;
+    }
+
+
+    /* =====================================================
+       ESCAPE
+       ===================================================== */
+
+    function escapeHtml(value) {
+
+        return String(
+            value ?? ""
+        )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+    }
+
+
+    /* =====================================================
+       DATE
+       ===================================================== */
+
+    function formatTime(
+        value
+    ) {
+
+        if (!value) {
+            return "";
+        }
+
+        const date =
+            new Date(
+                value.endsWith("Z")
+                    ? value
+                    : value + "Z"
+            );
+
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
+            return "";
+        }
+
+        return date.toLocaleTimeString(
+            [],
+            {
+                hour: "2-digit",
+                minute: "2-digit"
+            }
+        );
+    }
+
+
+    /* =====================================================
+       FILE SIZE
+       ===================================================== */
+
+    function formatSize(
+        bytes
+    ) {
+
+        if (
+            bytes < 1024
+        ) {
+            return bytes + " Б";
+        }
+
+        if (
+            bytes < 1024 * 1024
+        ) {
+            return (
+                (bytes / 1024)
+                    .toFixed(1)
+                + " КБ"
+            );
+        }
+
+        return (
+            (bytes / 1024 / 1024)
+                .toFixed(1)
+            + " МБ"
+        );
+    }
+
+
+    /* =====================================================
+       LOAD USERS
+       ===================================================== */
+
+    async function loadUsers() {
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/chat/users"
+                );
+
+            if (!response.ok) {
+                throw new Error();
+            }
+
+            users =
+                await response.json();
+
+            renderUsers();
+
+        } catch (error) {
+
+            showToast(
+                "Не удалось загрузить участников"
+            );
+        }
+    }
+
+
+    /* =====================================================
+       RENDER USERS
+       ===================================================== */
+
+    function renderUsers() {
+
+        const query =
+            search.value
+                .trim()
+                .toLowerCase();
+
+        const filtered =
+            users.filter(
+                function (user) {
+
+                    const text = (
+                        user.display_name
+                        || ""
+                    )
+                    + " "
+                    + (
+                        user.email
+                        || ""
+                    )
+                    + " "
+                    + (
+                        user.city
+                        || ""
+                    )
+                    + " "
+                    + (
+                        user.motorcycle
+                        || ""
+                    );
+
+                    return text
+                        .toLowerCase()
+                        .includes(
+                            query
+                        );
+                }
+            );
+
+
+        usersBox.innerHTML = "";
+
+
+        if (
+            !filtered.length
+        ) {
+
+            usersBox.innerHTML = `
+                <div
+                    style="
+                        padding:30px 18px;
+                        text-align:center;
+                        color:#697276;
+                        font-size:12px;
+                    "
+                >
+                    Участники не найдены
+                </div>
+            `;
+
+            return;
+        }
+
+
+        filtered.forEach(
+            function (user) {
+
+                const button =
+                    document.createElement(
+                        "button"
+                    );
+
+                button.type =
+                    "button";
+
+                button.className =
+                    "chat-user"
+                    + (
+                        selectedUser
+                        && selectedUser.id
+                            === user.id
+                            ? " active"
+                            : ""
+                    );
+
+                button.dataset.id =
+                    user.id;
+
+
+                const online =
+                    onlineUsers.has(
+                        user.id
+                    );
+
+
+                const name =
+                    user.display_name
+                    || user.email
+                    || "Участник";
+
+
+                const subtitle =
+                    online
+                        ? "в сети"
+                        : (
+                            user.city
+                            || user.motorcycle
+                            || "Участник MotoHub"
+                        );
+
+
+                button.innerHTML = `
+
+                    <div class="chat-avatar">
+                        ${avatarHtml(
+                            user,
+                            online
+                        )}
+                    </div>
+
+                    <div class="chat-user-info">
+
+                        <div class="chat-user-name">
+
+                            <span>
+                                ${escapeHtml(
+                                    name
+                                )}
+                            </span>
+
+                            ${
+                                user.role
+                                === "ADMIN"
+                                    ? `
+                                        <span
+                                            class="chat-user-role"
+                                        >
+                                            ADMIN
+                                        </span>
+                                    `
+                                    : ""
+                            }
+
+                            ${
+                                user.role
+                                === "MODERATOR"
+                                    ? `
+                                        <span
+                                            class="chat-user-role"
+                                        >
+                                            MOD
+                                        </span>
+                                    `
+                                    : ""
+                            }
+
+                        </div>
+
+                        <div class="chat-user-sub">
+                            ${escapeHtml(
+                                subtitle
+                            )}
+                        </div>
+
+                    </div>
+
+                    <span
+                        class="chat-unread"
+                        data-unread="${user.id}"
+                    ></span>
+                `;
+
+
+                button.addEventListener(
+                    "click",
+                    function () {
+
+                        openChat(
+                            user
+                        );
+
+                    }
+                );
+
+
+                usersBox.appendChild(
+                    button
+                );
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       OPEN CHAT
+       ===================================================== */
+
+    async function openChat(
+        user
+    ) {
+
+        selectedUser =
+            user;
+
+
+        app.classList.add(
+            "mobile-chat-open"
+        );
+
+
+        empty.style.display =
+            "none";
+
+        messages.style.display =
+            "flex";
+
+        composer.style.display =
+            "flex";
+
+
+        headName.textContent =
+            user.display_name
+            || user.email
+            || "Участник";
+
+
+        if (
+            user.avatar_url
+        ) {
+
+            headAvatar.innerHTML =
+                `<img
+                    src="${escapeHtml(
+                        user.avatar_url
+                    )}"
+                    alt=""
+                >`;
+
+        } else {
+
+            const letter =
+                (
+                    user.display_name
+                    || user.email
+                    || "?"
+                )
+                .charAt(0)
+                .toUpperCase();
+
+            headAvatar.innerHTML =
+                `<span>${escapeHtml(
+                    letter
+                )}</span>`;
+        }
+
+
+        updateHeadStatus();
+
+
+        document
+            .querySelectorAll(
+                ".chat-user"
+            )
+            .forEach(
+                function (el) {
+
+                    el.classList.toggle(
+                        "active",
+                        Number(
+                            el.dataset.id
+                        )
+                        === user.id
+                    );
+
+                }
+            );
+
+
+        messages.innerHTML = "";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/chat/messages/"
+                    + user.id
+                );
+
+            if (
+                response.ok
+            ) {
+
+                const history =
+                    await response.json();
+
+                history.forEach(
+                    function (message) {
+
+                        appendMessage(
+                            message
+                        );
+
+                    }
+                );
+
+                scrollMessages();
+
+            }
+
+            await fetch(
+                "/api/chat/read/"
+                + user.id,
+                {
+                    method: "POST"
+                }
+            );
+
+        } catch (error) {
+
+            showToast(
+                "Не удалось загрузить сообщения"
+            );
+        }
+
+
+        renderUsers();
+    }
+
+
+    /* =====================================================
+       BACK MOBILE
+       ===================================================== */
+
+    back.addEventListener(
+        "click",
+        function () {
+
+            app.classList.remove(
+                "mobile-chat-open"
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       STATUS
+       ===================================================== */
+
+    function updateHeadStatus() {
+
+        if (
+            !selectedUser
+        ) {
+
+            headStatus.textContent =
+                "Выберите участника";
+
+            headStatus.classList.remove(
+                "online"
+            );
+
+            return;
+        }
+
+
+        const online =
+            onlineUsers.has(
+                selectedUser.id
+            );
+
+
+        if (online) {
+
+            headStatus.textContent =
+                "в сети";
+
+            headStatus.classList.add(
+                "online"
+            );
+
+        } else {
+
+            headStatus.textContent =
+                "не в сети";
+
+            headStatus.classList.remove(
+                "online"
+            );
+        }
+    }
+
+
+    /* =====================================================
+       APPEND MESSAGE
+       ===================================================== */
+
+    function appendMessage(
+        message
+    ) {
+
+        if (
+            !message
+        ) {
+            return;
+        }
+
+
+        const mine =
+            message.email
+            === currentUserEmail;
+
+
+        const row =
+            document.createElement(
+                "div"
+            );
+
+        row.className =
+            "chat-message-row"
+            + (
+                mine
+                    ? " mine"
+                    : ""
+            );
+
+
+        const bubble =
+            document.createElement(
+                "div"
+            );
+
+        bubble.className =
+            "chat-message"
+            + (
+                mine
+                    ? " mine"
+                    : ""
+            );
+
+
+        let html = "";
+
+
+        /* -------------------------------------------------
+           AUTHOR
+           ------------------------------------------------- */
+
+        if (
+            !mine
+            && !selectedUser
+        ) {
+
+            html += `
+                <div
+                    class="chat-message-author"
+                >
+                    ${escapeHtml(
+                        message.display_name
+                        || message.email
+                        || "Участник"
+                    )}
+                </div>
+            `;
+
+        } else if (
+            !mine
+            && !message.recipient_id
+        ) {
+
+            html += `
+                <div
+                    class="chat-message-author"
+                >
+                    ${escapeHtml(
+                        message.display_name
+                        || message.email
+                        || "Участник"
+                    )}
+                </div>
+            `;
+        }
+
+
+        /* -------------------------------------------------
+           IMAGE
+           ------------------------------------------------- */
+
+        if (
+            message.attachment_url
+            && message.attachment_type
+                === "image"
+        ) {
+
+            html += `
+                <div class="chat-media">
+
+                    <img
+                        src="${escapeHtml(
+                            message.attachment_url
+                        )}"
+                        alt=""
+                        loading="lazy"
+                        onclick="window.open(
+                            this.src,
+                            '_blank'
+                        )"
+                    >
+
+                    ${
+                        message.attachment_name
+                            ? `
+                                <div
+                                    class="chat-file-name"
+                                >
+                                    ${escapeHtml(
+                                        message.attachment_name
+                                    )}
+                                </div>
+                            `
+                            : ""
+                    }
+
+                </div>
+            `;
+        }
+
+
+        /* -------------------------------------------------
+           VIDEO
+           ------------------------------------------------- */
+
+        if (
+            message.attachment_url
+            && message.attachment_type
+                === "video"
+        ) {
+
+            html += `
+                <div class="chat-media">
+
+                    <video
+                        controls
+                        preload="metadata"
+                        playsinline
+                        src="${escapeHtml(
+                            message.attachment_url
+                        )}"
+                    ></video>
+
+                    ${
+                        message.attachment_name
+                            ? `
+                                <div
+                                    class="chat-file-name"
+                                >
+                                    ${escapeHtml(
+                                        message.attachment_name
+                                    )}
+                                </div>
+                            `
+                            : ""
+                    }
+
+                </div>
+            `;
+        }
+
+
+        /* -------------------------------------------------
+           TEXT
+           ------------------------------------------------- */
+
+        if (
+            message.text
+            && message.text.trim()
+        ) {
+
+            html += `
+                <div
+                    class="chat-message-text"
+                >
+                    ${escapeHtml(
+                        message.text
+                    )}
+                </div>
+            `;
+        }
+
+
+        /* -------------------------------------------------
+           META
+           ------------------------------------------------- */
+
+        html += `
+            <div
+                class="chat-message-meta"
+            >
+                <span>
+                    ${formatTime(
+                        message.created_at
+                    )}
+                </span>
+
+                ${
+                    mine
+                        ? `
+                            <span>
+                                ${
+                                    message.is_read
+                                        ? "✓✓"
+                                        : "✓"
+                                }
+                            </span>
+                        `
+                        : ""
+                }
+            </div>
+        `;
+
+
+        bubble.innerHTML =
+            html;
+
+
+        row.appendChild(
+            bubble
+        );
+
+        messages.appendChild(
+            row
+        );
+    }
+
+
+    /* =====================================================
+       SCROLL
+       ===================================================== */
+
+    function scrollMessages() {
+
+        requestAnimationFrame(
+            function () {
+
+                messages.scrollTop =
+                    messages.scrollHeight;
+
+            }
+        );
+    }
+
+
+    /* =====================================================
+       SOCKET CONNECT
+       ===================================================== */
+
+    function connectSocket() {
+
+        if (
+            socket
+            && (
+                socket.readyState
+                    === WebSocket.OPEN
+                ||
+                socket.readyState
+                    === WebSocket.CONNECTING
+            )
+        ) {
+            return;
+        }
+
+
+        const protocol =
+            location.protocol
+            === "https:"
+                ? "wss:"
+                : "ws:";
+
+
+        socket =
+            new WebSocket(
+                protocol
+                + "//"
+                + location.host
+                + "/ws/chat"
+            );
+
+
+        socket.addEventListener(
+            "open",
+            function () {
+
+                updateConnectionStatus();
+
+            }
+        );
+
+
+        socket.addEventListener(
+            "message",
+            function (event) {
+
+                try {
+
+                    const data =
+                        JSON.parse(
+                            event.data
+                        );
+
+                    handleSocketMessage(
+                        data
+                    );
+
+                } catch (
+                    error
+                ) {
+
+                    console.error(
+                        error
+                    );
+                }
+
+            }
+        );
+
+
+        socket.addEventListener(
+            "close",
+            function () {
+
+                updateConnectionStatus();
+
+                clearTimeout(
+                    reconnectTimer
+                );
+
+                reconnectTimer =
+                    setTimeout(
+                        connectSocket,
+                        2500
+                    );
+
+            }
+        );
+
+
+        socket.addEventListener(
+            "error",
+            function () {
+
+                try {
+                    socket.close();
+                } catch (_) {}
+
+            }
+        );
+    }
+
+
+    /* =====================================================
+       SOCKET MESSAGE
+       ===================================================== */
+
+    function handleSocketMessage(
+        data
+    ) {
+
+        if (
+            data.type
+            === "presence"
+        ) {
+
+            onlineUsers =
+                new Set(
+                    (
+                        data.online
+                        || []
+                    )
+                    .map(
+                        Number
+                    )
+                );
+
+
+            onlineCount.textContent =
+                onlineUsers.size
+                + " онлайн";
+
+
+            renderUsers();
+
+            updateHeadStatus();
+
+            return;
+        }
+
+
+        if (
+            data.type
+            === "public"
+            || data.type
+            === "dm"
+        ) {
+
+            const message =
+                data.message;
+
+
+            if (
+                !message
+            ) {
+                return;
+            }
+
+
+            /* ---------------------------------------------
+               PUBLIC
+               --------------------------------------------- */
+
+            if (
+                data.type
+                === "public"
+            ) {
+
+                /*
+                 * Публичный чат пока не показываем
+                 * в личном диалоге.
+                 */
+
+                return;
+            }
+
+
+            /* ---------------------------------------------
+               PRIVATE
+               --------------------------------------------- */
+
+            const senderIsMe =
+                message.email
+                === currentUserEmail;
+
+
+            const otherId =
+                senderIsMe
+                    ? Number(
+                        message.recipient_id
+                    )
+                    : findUserIdByEmail(
+                        message.email
+                    );
+
+
+            if (
+                selectedUser
+                && Number(
+                    selectedUser.id
+                )
+                === Number(
+                    otherId
+                )
+            ) {
+
+                appendMessage(
+                    message
+                );
+
+                scrollMessages();
+
+                if (
+                    !senderIsMe
+                ) {
+
+                    fetch(
+                        "/api/chat/read/"
+                        + selectedUser.id,
+                        {
+                            method:
+                                "POST"
+                        }
+                    );
+                }
+
+            } else if (
+                !senderIsMe
+            ) {
+
+                const sender =
+                    findUserByEmail(
+                        message.email
+                    );
+
+                if (sender) {
+
+                    const badge =
+                        document.querySelector(
+                            `[data-unread="${sender.id}"]`
+                        );
+
+                    if (badge) {
+
+                        const old =
+                            Number(
+                                badge.textContent
+                                || 0
+                            );
+
+                        badge.textContent =
+                            old + 1;
+
+                        badge.classList.add(
+                            "show"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+
+    /* =====================================================
+       FIND USER
+       ===================================================== */
+
+    function findUserByEmail(
+        email
+    ) {
+
+        return users.find(
+            function (user) {
+
+                return user.email
+                    === email;
+
+            }
+        );
+    }
+
+
+    function findUserIdByEmail(
+        email
+    ) {
+
+        const user =
+            findUserByEmail(
+                email
+            );
+
+        return user
+            ? user.id
+            : null;
+    }
+
+
+    /* =====================================================
+       SEND MESSAGE
+       ===================================================== */
+
+    async function sendMessage() {
+
+        if (
+            !selectedUser
+        ) {
+
+            showToast(
+                "Сначала выберите чат"
+            );
+
+            return;
+        }
+
+
+        const text =
+            input.value.trim();
+
+
+        if (
+            !text
+            && !uploadedFile
+        ) {
+            return;
+        }
+
+
+        if (
+            !socket
+            || socket.readyState
+                !== WebSocket.OPEN
+        ) {
+
+            showToast(
+                "Соединение с чатом потеряно"
+            );
+
+            connectSocket();
+
+            return;
+        }
+
+
+        send.disabled =
+            true;
+
+
+        try {
+
+            let attachment = null;
+
+
+            /* ---------------------------------------------
+               UPLOAD FILE
+               --------------------------------------------- */
+
+            if (
+                uploadedFile
+            ) {
+
+                const form =
+                    new FormData();
+
+                form.append(
+                    "file",
+                    uploadedFile
+                );
+
+
+                const response =
+                    await fetch(
+                        "/api/chat/upload",
+                        {
+                            method:
+                                "POST",
+                            body:
+                                form
+                        }
+                    );
+
+
+                const result =
+                    await response.json();
+
+
+                if (
+                    !response.ok
+                ) {
+
+                    throw new Error(
+                        result.error
+                        || "Ошибка загрузки"
+                    );
+                }
+
+
+                attachment = result;
+            }
+
+
+            /* ---------------------------------------------
+               SOCKET
+               --------------------------------------------- */
+
+            socket.send(
+                JSON.stringify(
+                    {
+                        text,
+
+                        recipient_id:
+                            selectedUser.id,
+
+                        attachment_url:
+                            attachment
+                                ? attachment.url
+                                : null,
+
+                        attachment_type:
+                            attachment
+                                ? attachment.type
+                                : null,
+
+                        attachment_name:
+                            attachment
+                                ? attachment.name
+                                : null
+                    }
+                )
+            );
+
+
+            input.value = "";
+
+            resizeInput();
+
+            clearUpload();
+
+
+        } catch (
+            error
+        ) {
+
+            showToast(
+                error.message
+                || "Не удалось отправить"
+            );
+
+        } finally {
+
+            send.disabled =
+                false;
+
+            input.focus();
+        }
+    }
+
+
+    /* =====================================================
+       FORM
+       ===================================================== */
+
+    composer.addEventListener(
+        "submit",
+        function (event) {
+
+            event.preventDefault();
+
+            sendMessage();
+
+        }
+    );
+
+
+    /* =====================================================
+       ENTER
+       ===================================================== */
+
+    input.addEventListener(
+        "keydown",
+        function (event) {
+
+            if (
+                event.key
+                === "Enter"
+                && !event.shiftKey
+            ) {
+
+                event.preventDefault();
+
+                sendMessage();
+            }
+
+        }
+    );
+
+
+    /* =====================================================
+       TEXTAREA SIZE
+       ===================================================== */
+
+    function resizeInput() {
+
+        input.style.height =
+            "auto";
+
+        input.style.height =
+            Math.min(
+                input.scrollHeight,
+                130
+            )
+            + "px";
+    }
+
+
+    input.addEventListener(
+        "input",
+        resizeInput
+    );
+
+
+    /* =====================================================
+       ATTACH
+       ===================================================== */
+
+    attach.addEventListener(
+        "click",
+        function () {
+
+            file.click();
+
+        }
+    );
+
+
+    file.addEventListener(
+        "change",
+        function () {
+
+            const selected =
+                file.files[0];
+
+
+            if (
+                !selected
+            ) {
+                return;
+            }
+
+
+            const isImage =
+                selected.type
+                    .startsWith(
+                        "image/"
+                    );
+
+
+            const isVideo =
+                selected.type
+                    .startsWith(
+                        "video/"
+                    );
+
+
+            if (
+                !isImage
+                && !isVideo
+            ) {
+
+                showToast(
+                    "Можно отправлять только фото и видео"
+                );
+
+                file.value = "";
+
+                return;
+            }
+
+
+            const max =
+                isImage
+                    ? 10 * 1024 * 1024
+                    : 50 * 1024 * 1024;
+
+
+            if (
+                selected.size
+                > max
+            ) {
+
+                showToast(
+                    isImage
+                        ? "Фото максимум 10 МБ"
+                        : "Видео максимум 50 МБ"
+                );
+
+                file.value = "";
+
+                return;
+            }
+
+
+            uploadedFile =
+                selected;
+
+
+            showUploadPreview(
+                selected
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       PREVIEW
+       ===================================================== */
+
+    function showUploadPreview(
+        selected
+    ) {
+
+        previewThumb.innerHTML =
+            "";
+
+
+        const url =
+            URL.createObjectURL(
+                selected
+            );
+
+
+        if (
+            selected.type
+                .startsWith(
+                    "image/"
+                )
+        ) {
+
+            const img =
+                document.createElement(
+                    "img"
+                );
+
+            img.src =
+                url;
+
+            previewThumb.appendChild(
+                img
+            );
+
+        } else {
+
+            const video =
+                document.createElement(
+                    "video"
+                );
+
+            video.src =
+                url;
+
+            video.muted =
+                true;
+
+            previewThumb.appendChild(
+                video
+            );
+        }
+
+
+        previewName.textContent =
+            selected.name;
+
+
+        previewSize.textContent =
+            formatSize(
+                selected.size
+            );
+
+
+        uploadPreview.classList.add(
+            "show"
+        );
+    }
+
+
+    /* =====================================================
+       CLEAR UPLOAD
+       ===================================================== */
+
+    function clearUpload() {
+
+        uploadedFile =
+            null;
+
+        file.value =
+            "";
+
+        previewThumb.innerHTML =
+            "";
+
+        previewName.textContent =
+            "";
+
+        previewSize.textContent =
+            "";
+
+        uploadPreview.classList.remove(
+            "show"
+        );
+    }
+
+
+    previewRemove.addEventListener(
+        "click",
+        clearUpload
+    );
+
+
+    /* =====================================================
+       SEARCH
+       ===================================================== */
+
+    search.addEventListener(
+        "input",
+        renderUsers
+    );
+
+
+    /* =====================================================
+       CONNECTION STATUS
+       ===================================================== */
+
+    function updateConnectionStatus() {
+
+        if (
+            !selectedUser
+        ) {
+            return;
+        }
+
+
+        if (
+            socket
+            && socket.readyState
+                === WebSocket.OPEN
+        ) {
+
+            updateHeadStatus();
+
+        }
+    }
+
+
+    /* =====================================================
+       INITIAL LOAD
+       ===================================================== */
+
+    loadUsers();
+
+    connectSocket();
+
+
+    /* =====================================================
+       UNREAD
+       ===================================================== */
+
+    async function loadUnread() {
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/chat/unread"
+                );
+
+
+            if (
+                !response.ok
+            ) {
+                return;
+            }
+
+
+            const data =
+                await response.json();
+
+
+            data.forEach(
+                function (item) {
+
+                    const user =
+                        findUserByEmail(
+                            item.email
+                        );
+
+                    if (!user) {
+                        return;
+                    }
+
+
+                    if (
+                        selectedUser
+                        && selectedUser.id
+                            === user.id
+                    ) {
+                        return;
+                    }
+
+
+                    const badge =
+                        document.querySelector(
+                            `[data-unread="${user.id}"]`
+                        );
+
+
+                    if (
+                        !badge
+                    ) {
+                        return;
+                    }
+
+
+                    badge.textContent =
+                        item.count;
+
+                    badge.classList.add(
+                        "show"
+                    );
+
+                }
+            );
+
+        } catch (_) {}
+    }
+
+
+    setTimeout(
+        loadUnread,
+        700
+    );
+
+
+})();
+</script>
+
+{% endblock %}
