@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Восстановление пароля — MotoHub{% endblock %}
+
+{% block content %}
+
+<div class="form">
+
+    <div class="tag">PASSWORD RESET</div>
+
+    <h1>Восстановление пароля</h1>
+
+    <p class="muted">
+        Введите email аккаунта.
+        Мы отправим код подтверждения на Gmail.
+    </p>
+
+    {% if error %}
+        <div class="error">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="post" action="/auth/forgot">
+
+        <input
+            class="input"
+            type="email"
+            name="email"
+            placeholder="Email"
+            autocomplete="email"
+            required
+        >
+
+        <button class="btn" type="submit">
+            Получить код
+        </button>
+
+    </form>
+
+    <p class="muted" style="margin-top:16px">
+        <a href="/login">
+            Вернуться ко входу
+        </a>
+    </p>
+
+</div>
+
+{% endblock %}
+```

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}MotoHub — настройки{% endblock %}
+{% block content %}
+<div class="wrap" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div class="tag">MOTOHUB / SETTINGS</div><h1>Настройки</h1><p class="muted">Цвет интерфейса сохраняется в аккаунте и применяется на следующих устройствах.</p>
+  <div class="card" style="margin-top:22px">
+    <h2>Цвет MotoHub</h2>
+    <form method="post" action="/settings/theme" style="display:grid;gap:12px;margin-top:18px">
+      <select class="input" name="accent"><option value="#ff2636" {% if user.theme_accent=='#ff2636' %}selected{% endif %}>Redline</option><option value="#b8ff00" {% if user.theme_accent=='#b8ff00' %}selected{% endif %}>Moto Green</option><option value="#2f8cff" {% if user.theme_accent=='#2f8cff' %}selected{% endif %}>Blue Racing</option><option value="#9b5cff" {% if user.theme_accent=='#9b5cff' %}selected{% endif %}>Purple Night</option><option value="#ff7a00" {% if user.theme_accent=='#ff7a00' %}selected{% endif %}>Orange Flame</option><option value="#f2f4f5" {% if user.theme_accent=='#f2f4f5' %}selected{% endif %}>White / Ice</option></select>
+      <select class="input" name="mode"><option value="dark" selected>Dark</option><option value="light" {% if user.theme_mode=='light' %}selected{% endif %}>Light</option></select>
+      <button class="btn" type="submit">Сохранить</button>
+    </form>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <h2>Уведомления</h2>
+    <p class="muted">Разрешение браузера нужно для уведомлений MotoHub на поддерживаемых устройствах.</p>
+    <button class="btn" type="button" id="mh-notify">Разрешить уведомления</button>
+    <span class="muted" id="mh-notify-status" style="margin-left:10px"></span>
+  </div>
+  <script>
+  (function(){const b=document.getElementById('mh-notify'),s=document.getElementById('mh-notify-status'); if(!b)return; if(!('Notification' in window)){b.disabled=true;s.textContent='Браузер не поддерживает уведомления';return;} if(Notification.permission==='granted')s.textContent='Разрешено'; b.onclick=async()=>{try{const p=await Notification.requestPermission();s.textContent=p==='granted'?'Разрешено':p==='denied'?'Запрещено':'Не выбрано';}catch(e){s.textContent='Не удалось запросить разрешение';}};})();
+  </script>
+
+</div>
+{% endblock %}

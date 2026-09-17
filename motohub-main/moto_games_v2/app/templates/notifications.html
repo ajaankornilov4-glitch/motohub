@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}MotoHub — уведомления{% endblock %}
+{% block content %}
+<div class="wrap" style="max-width:1000px;padding-top:40px;padding-bottom:80px">
+  <div class="tag">MOTOHUB / NOTIFICATIONS</div><h1>Уведомления</h1>
+  <div style="display:grid;gap:10px;margin-top:22px">
+  {% for n in notifications %}<article class="card"><div class="small" style="color:#ff2636">{{ n.created_at }}</div><h3>{{ n.title }}</h3><p class="muted">{{ n.body }}</p></article>{% else %}<div class="card">Уведомлений пока нет.</div>{% endfor %}
+  </div>
+</div>
+{% endblock %}
