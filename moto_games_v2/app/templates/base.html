@@ -1,44 +1,2198 @@
 <!doctype html>
 <html lang="ru">
+
 <head>
 
-<link rel="icon" type="image/png" href="/static/favicon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <meta charset="utf-8">
 
-<meta name="theme-color" content="#090a0b">
+    <meta
+        name="viewport"
+        content="width=device-width,initial-scale=1,viewport-fit=cover"
+    >
 
-<meta name="description" content="MotoHub — сообщество мотоциклистов.">
+    <meta
+        name="theme-color"
+        content="#090a0b"
+    >
 
-<meta property="og:title" content="MotoHub — сообщество мотоциклистов">
-<meta property="og:description" content="Участвуй в мероприятиях, общайся, выигрывай, получай достижения и всё это в Республике Саха (Якутия).">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://motohub.relaxdev.ru/">
-<meta property="og:image" content="https://motohub.relaxdev.ru/static/motohub-preview.png">
-<meta property="og:image:type" content="image/png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+    <meta
+        name="description"
+        content="MotoHub — сообщество мотоциклистов. Мероприятия, новости, участники, достижения и чат."
+    >
 
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+    <link
+        rel="icon"
+        type="image/png"
+        href="/static/favicon.png"
+    >
 
-<title>{% block title %}MotoHub{% endblock %}</title>
+    <link
+        rel="apple-touch-icon"
+        sizes="180x180"
+        href="/static/apple-touch-icon.png"
+    >
+
+    <meta
+        property="og:title"
+        content="MotoHub — сообщество мотоциклистов"
+    >
+
+    <meta
+        property="og:description"
+        content="Мероприятия, новости, участники, достижения и чат MotoHub."
+    >
+
+    <meta
+        property="og:type"
+        content="website"
+    >
+
+    <meta
+        property="og:url"
+        content="https://motohub.relaxdev.ru/"
+    >
+
+    <meta
+        property="og:image"
+        content="https://motohub.relaxdev.ru/static/motohub-preview.png"
+    >
+
+    <meta
+        property="og:image:type"
+        content="image/png"
+    >
+
+    <meta
+        property="og:image:width"
+        content="1200"
+    >
+
+    <meta
+        property="og:image:height"
+        content="630"
+    >
+
+    <title>
+        {% block title %}MotoHub{% endblock %}
+    </title>
+
 
 <style>
-*{box-sizing:border-box}body{margin:0;background:#090a0b;color:#f4f4f4;font-family:Arial,sans-serif}a{color:inherit;text-decoration:none}
-.nav{height:72px;border-bottom:1px solid #25282a;display:flex;align-items:center;justify-content:space-between;padding:0 6%;position:sticky;top:0;background:#090a0bee;backdrop-filter:blur(10px);z-index:10}
-.logo{font-size:25px;font-weight:900;letter-spacing:2px}.logo span,.accent{color:#b8ff00}.links{display:flex;gap:18px;align-items:center}
-.btn{background:#b8ff00;color:#080a08;border:0;padding:12px 18px;border-radius:10px;font-weight:800;cursor:pointer}.btn.dark{background:#171b1c;color:#fff;border:1px solid #303537}
-.hero{min-height:560px;padding:90px 8%;display:flex;align-items:center;overflow:hidden;background:radial-gradient(circle at 70% 45%,#243000 0,#10140b 20%,transparent 48%),linear-gradient(120deg,#0a0b0c,#111416)}
-.hero h1{font-size:clamp(48px,8vw,100px);line-height:.88;margin:0;max-width:850px}.muted{color:#92999d}.wrap{max-width:1200px;margin:auto;padding:55px 6%}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.card{background:#131617;border:1px solid #25292b;border-radius:18px;padding:24px}.card h3{margin-top:0}
-.tag{display:inline-block;color:#b8ff00;font-size:12px;font-weight:bold;letter-spacing:1px;margin-bottom:12px}.form{max-width:460px;margin:80px auto;padding:35px;background:#131617;border:1px solid #282c2e;border-radius:20px}
-.input{width:100%;padding:14px;margin:8px 0 15px;background:#090a0b;color:#fff;border:1px solid #363b3e;border-radius:10px}.error{color:#ff6b6b;margin:12px 0}
-.chat{height:420px;overflow:auto;background:#0e1011;border:1px solid #292d2f;border-radius:16px;padding:16px}.msg{padding:9px 0;border-bottom:1px solid #202325}.small{font-size:12px;color:#72787c}
-.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#222;display:block}.avatar-lg{width:120px;height:120px;border-radius:50%;object-fit:cover;background:#222;border:2px solid #b8ff00}
-@media(max-width:750px){.admin-grid{grid-template-columns:1fr}.links a.nav-hide{display:none}.nav{padding:0 4%}.links{gap:8px}.logo{font-size:20px}}
-</style></head><body><nav class="nav"><a class="logo" href="/">MOTO<span>HUB</span></a><div class="links">
-<a class="nav-hide" href="/#events">События</a><a class="nav-hide" href="/#news">Новости</a>
-{% if user %}<a href="/profile">👤 Профиль</a><a href="/chat" onclick="return openChat(event)">💬 Чат</a>{% if user.role in ['ADMIN','MODERATOR'] %}<a href="/admin">Админка</a>{% endif %}<form method="post" action="/logout"><button class="btn">Выйти</button></form>
-{% else %}<a class="btn" href="/login">Войти</a>{% endif %}
-</div></nav>{% block content %}{% endblock %}
-<script>function openChat(e){e.preventDefault();window.open('/chat','motohub_chat','width=1200,height=800,resizable=yes,scrollbars=yes');return false}</script></body></html>
+
+/* =========================================================
+   GLOBAL
+   ========================================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+
+    background:
+        radial-gradient(
+            circle at 50% -20%,
+            rgba(184,255,0,.035),
+            transparent 35%
+        ),
+        #090a0b;
+
+    color: #f4f4f4;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    overflow-x: hidden;
+}
+
+img {
+    max-width: 100%;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+    background: #b8ff00;
+    color: #090a0b;
+}
+
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+.nav {
+    min-height: 72px;
+
+    border-bottom: 1px solid #25282a;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding:
+        0
+        max(20px, 6%);
+
+    position: sticky;
+    top: 0;
+
+    background: rgba(9,10,11,.93);
+
+    backdrop-filter: blur(14px);
+
+    -webkit-backdrop-filter: blur(14px);
+
+    z-index: 1000;
+}
+
+.logo {
+    flex-shrink: 0;
+
+    font-size: 25px;
+    font-weight: 900;
+
+    letter-spacing: 2px;
+}
+
+.logo span,
+.accent {
+    color: #b8ff00;
+}
+
+.links {
+    display: flex;
+    align-items: center;
+
+    justify-content: flex-end;
+
+    gap: 18px;
+
+    min-width: 0;
+}
+
+.links > a {
+    white-space: nowrap;
+
+    color: #e7e9e9;
+
+    transition:
+        color .18s ease,
+        opacity .18s ease;
+}
+
+.links > a:hover {
+    color: #b8ff00;
+}
+
+.links form {
+    margin: 0;
+}
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.btn {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    min-height: 44px;
+
+    background: #b8ff00;
+
+    color: #080a08;
+
+    border: 0;
+
+    padding: 11px 18px;
+
+    border-radius: 10px;
+
+    font-weight: 800;
+
+    cursor: pointer;
+
+    transition:
+        transform .18s ease,
+        background .18s ease,
+        box-shadow .18s ease;
+}
+
+.btn:hover {
+    background: #c6ff36;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 8px 25px rgba(184,255,0,.12);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn.dark,
+.btn.secondary {
+    background: #171b1c;
+
+    color: #fff;
+
+    border: 1px solid #303537;
+}
+
+.btn.dark:hover,
+.btn.secondary:hover {
+    background: #202526;
+
+    border-color: #454b4f;
+
+    box-shadow: none;
+}
+
+.btn.small {
+    min-height: 38px;
+
+    padding: 8px 14px;
+
+    font-size: 13px;
+}
+
+.danger-btn {
+    background: #ff2636;
+
+    color: #fff;
+}
+
+.danger-btn:hover {
+    background: #ff4351;
+}
+
+
+/* =========================================================
+   HERO
+   ========================================================= */
+
+.hero {
+    min-height: 560px;
+
+    padding:
+        90px 8%;
+
+    display: flex;
+
+    align-items: center;
+
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            circle at 70% 45%,
+            #243000 0,
+            #10140b 20%,
+            transparent 48%
+        ),
+        linear-gradient(
+            120deg,
+            #0a0b0c,
+            #111416
+        );
+}
+
+.hero h1 {
+    font-size:
+        clamp(48px, 8vw, 100px);
+
+    line-height: .88;
+
+    margin: 0;
+
+    max-width: 850px;
+}
+
+
+/* =========================================================
+   COMMON LAYOUT
+   ========================================================= */
+
+.wrap {
+    width: 100%;
+
+    max-width: 1200px;
+
+    margin: 0 auto;
+
+    padding:
+        55px 6%;
+}
+
+.grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(280px, 1fr)
+        );
+
+    gap: 18px;
+}
+
+.card {
+    background: #131617;
+
+    border: 1px solid #25292b;
+
+    border-radius: 18px;
+
+    padding: 24px;
+
+    min-width: 0;
+}
+
+.card h3 {
+    margin-top: 0;
+}
+
+.muted {
+    color: #92999d;
+
+    line-height: 1.55;
+}
+
+.tag {
+    display: inline-block;
+
+    color: #b8ff00;
+
+    font-size: 12px;
+
+    font-weight: bold;
+
+    letter-spacing: 1px;
+
+    margin-bottom: 12px;
+}
+
+
+/* =========================================================
+   FORMS
+   ========================================================= */
+
+.form {
+    width:
+        min(
+            100% - 32px,
+            460px
+        );
+
+    margin:
+        80px auto;
+
+    padding: 35px;
+
+    background: #131617;
+
+    border:
+        1px solid
+        #282c2e;
+
+    border-radius: 20px;
+
+    box-shadow:
+        0 20px 70px rgba(0,0,0,.18);
+}
+
+.form h1 {
+    margin-top: 8px;
+}
+
+.form form {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 2px;
+}
+
+.input {
+    width: 100%;
+
+    min-height: 50px;
+
+    padding: 14px;
+
+    margin:
+        8px 0
+        15px;
+
+    background: #090a0b;
+
+    color: #fff;
+
+    border:
+        1px solid
+        #363b3e;
+
+    border-radius: 10px;
+
+    outline: none;
+
+    transition:
+        border-color .18s ease,
+        box-shadow .18s ease;
+}
+
+.input:focus {
+    border-color: #b8ff00;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(184,255,0,.08);
+}
+
+textarea.input {
+    resize: vertical;
+}
+
+.form .btn {
+    width: 100%;
+}
+
+.error {
+    color: #ff8a92;
+
+    margin:
+        12px 0;
+
+    padding:
+        12px 14px;
+
+    border:
+        1px solid
+        rgba(255,38,54,.35);
+
+    border-radius: 10px;
+
+    background:
+        rgba(255,38,54,.08);
+
+    line-height: 1.4;
+}
+
+.otp-input {
+    text-align: center;
+
+    font-size: 28px !important;
+
+    font-weight: 800;
+
+    letter-spacing: 7px;
+}
+
+
+/* =========================================================
+   CHAT
+   ========================================================= */
+
+.chat {
+    height: 420px;
+
+    overflow: auto;
+
+    background: #0e1011;
+
+    border:
+        1px solid
+        #292d2f;
+
+    border-radius: 16px;
+
+    padding: 16px;
+}
+
+.msg {
+    padding: 9px 0;
+
+    border-bottom:
+        1px solid
+        #202325;
+}
+
+.small {
+    font-size: 12px;
+
+    color: #72787c;
+}
+
+
+/* =========================================================
+   PROFILE
+   ========================================================= */
+
+.avatar {
+    width: 48px;
+    height: 48px;
+
+    border-radius: 50%;
+
+    object-fit: cover;
+
+    background: #222;
+
+    display: block;
+}
+
+.avatar-lg {
+    width: 120px;
+    height: 120px;
+
+    border-radius: 50%;
+
+    object-fit: cover;
+
+    background: #222;
+
+    border:
+        2px solid
+        #b8ff00;
+}
+
+
+/* =========================================================
+   ADMIN — MAIN
+   ========================================================= */
+
+.admin-page {
+    width:
+        min(
+            1180px,
+            calc(100% - 40px)
+        );
+
+    margin:
+        40px auto
+        80px;
+}
+
+.admin-head {
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    gap: 30px;
+
+    margin-bottom: 40px;
+}
+
+.admin-head h1 {
+    margin:
+        8px 0 12px;
+
+    font-size:
+        clamp(
+            34px,
+            5vw,
+            56px
+        );
+
+    line-height: 1;
+}
+
+.admin-head .btn {
+    flex-shrink: 0;
+}
+
+
+/* =========================================================
+   ADMIN — SECTIONS
+   ========================================================= */
+
+.admin-section {
+    margin-bottom: 28px;
+
+    padding: 28px;
+
+    border:
+        1px solid
+        #292d30;
+
+    border-radius: 22px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #0f1112,
+            #0c0e0f
+        );
+
+    box-shadow:
+        0 15px 50px
+        rgba(0,0,0,.14);
+}
+
+.section-head {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-bottom: 22px;
+}
+
+.section-head h2 {
+    margin:
+        7px 0 0;
+
+    font-size: 30px;
+}
+
+
+/* =========================================================
+   ADMIN — SEARCH
+   ========================================================= */
+
+.admin-search {
+    margin-bottom: 20px;
+}
+
+.admin-search .input {
+    width: 100%;
+
+    margin-bottom: 0;
+}
+
+
+/* =========================================================
+   ADMIN — USERS
+   ========================================================= */
+
+.admin-users {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 14px;
+}
+
+.admin-user {
+    padding: 20px;
+
+    border:
+        1px solid
+        #292d30;
+
+    border-radius: 18px;
+
+    background: #111415;
+
+    min-width: 0;
+
+    transition:
+        border-color .2s ease,
+        background .2s ease,
+        transform .2s ease;
+}
+
+.admin-user:hover {
+    border-color: #454b4f;
+
+    background: #141718;
+
+    transform: translateY(-1px);
+}
+
+.admin-user-main {
+    display: flex;
+
+    align-items: center;
+
+    gap: 16px;
+
+    min-width: 0;
+}
+
+.admin-avatar {
+    width: 58px;
+    height: 58px;
+
+    min-width: 58px;
+
+    border-radius: 16px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    background: #1b1e20;
+
+    border:
+        1px solid
+        #303538;
+
+    font-size: 23px;
+
+    font-weight: 900;
+}
+
+.admin-avatar img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+.admin-user-info {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 4px;
+
+    min-width: 0;
+}
+
+.admin-user-info strong {
+    font-size: 18px;
+
+    color: #f4f5f5;
+}
+
+.admin-user-info > span {
+    color: #8e969a;
+
+    font-size: 14px;
+
+    overflow-wrap: anywhere;
+}
+
+.admin-badges {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 7px;
+
+    margin-top: 7px;
+}
+
+
+/* =========================================================
+   ADMIN — BADGES
+   ========================================================= */
+
+.badge {
+    display: inline-flex;
+
+    align-items: center;
+
+    min-height: 25px;
+
+    padding:
+        3px 9px;
+
+    border-radius: 999px;
+
+    background: #202426;
+
+    border:
+        1px solid
+        #34393c;
+
+    color: #d7dcde;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: .5px;
+}
+
+.badge.danger {
+    background:
+        rgba(255,38,54,.10);
+
+    border-color:
+        rgba(255,38,54,.35);
+
+    color: #ff6671;
+}
+
+.badge.warning {
+    background:
+        rgba(255,190,40,.10);
+
+    border-color:
+        rgba(255,190,40,.30);
+
+    color: #ffd36a;
+}
+
+
+/* =========================================================
+   ADMIN — ACTIONS
+   ========================================================= */
+
+.admin-actions {
+    display: flex;
+
+    align-items: center;
+
+    flex-wrap: wrap;
+
+    gap: 9px;
+
+    margin-top: 17px;
+
+    padding-top: 17px;
+
+    border-top:
+        1px solid
+        #24282a;
+}
+
+.admin-actions form {
+    margin: 0;
+}
+
+.admin-actions select {
+    margin: 0;
+}
+
+.small-input {
+    min-height: 38px !important;
+
+    padding:
+        7px 12px !important;
+
+    font-size: 13px !important;
+}
+
+
+/* =========================================================
+   ADMIN — DETAILS
+   ========================================================= */
+
+.admin-details {
+    margin-top: 10px;
+
+    border-top:
+        1px solid
+        #24282a;
+}
+
+.admin-details summary {
+    padding:
+        15px 4px;
+
+    cursor: pointer;
+
+    color: #c5cbce;
+
+    font-weight: 700;
+
+    list-style: none;
+
+    user-select: none;
+}
+
+.admin-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-details summary::before {
+    content: "›";
+
+    display: inline-block;
+
+    margin-right: 9px;
+
+    font-size: 20px;
+
+    transition:
+        transform .2s ease;
+}
+
+.admin-details[open]
+summary::before {
+    transform:
+        rotate(90deg);
+}
+
+.admin-details summary:hover {
+    color: #fff;
+}
+
+
+/* =========================================================
+   ADMIN — FORMS
+   ========================================================= */
+
+.admin-form {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 4px;
+
+    margin-top: 10px;
+}
+
+.admin-form .input {
+    width: 100%;
+}
+
+.admin-form textarea.input {
+    min-height: 100px;
+
+    resize: vertical;
+}
+
+.admin-form .btn {
+    align-self: flex-start;
+}
+
+
+/* =========================================================
+   ADMIN — NEWS / EVENTS
+   ========================================================= */
+
+.admin-list {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0,1fr)
+        );
+
+    gap: 14px;
+
+    margin-top: 22px;
+}
+
+.admin-card {
+    padding: 20px;
+
+    border:
+        1px solid
+        #292d30;
+
+    border-radius: 18px;
+
+    background: #111415;
+
+    min-width: 0;
+}
+
+.admin-card h3 {
+    margin:
+        10px 0;
+
+    font-size: 20px;
+}
+
+.admin-card p {
+    margin: 0;
+
+    color: #aeb5b8;
+
+    line-height: 1.6;
+
+    white-space: pre-wrap;
+
+    overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   ADMIN — EMPTY
+   ========================================================= */
+
+.empty {
+    padding: 25px;
+
+    border:
+        1px dashed
+        #34393c;
+
+    border-radius: 16px;
+
+    color: #7f888c;
+
+    text-align: center;
+}
+
+
+/* =========================================================
+   ADMIN — SEARCH RESULTS
+   ========================================================= */
+
+#userSearchResults {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 14px;
+
+    margin-bottom: 14px;
+}
+
+.search-user {
+    margin: 0;
+}
+
+
+/* =========================================================
+   MOBILE AUTH
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    .form {
+        width:
+            calc(100% - 24px);
+
+        margin:
+            35px auto;
+
+        padding: 22px 18px;
+
+        border-radius: 17px;
+    }
+
+    .form h1 {
+        font-size: 32px;
+    }
+
+    .form .input {
+        min-height: 54px;
+
+        font-size: 16px;
+    }
+
+    .form .btn {
+        min-height: 54px;
+
+        font-size: 16px;
+    }
+
+    .otp-input {
+        font-size: 25px !important;
+
+        letter-spacing: 5px;
+    }
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 800px) {
+
+    .admin-page {
+        width:
+            min(
+                calc(100% - 24px),
+                680px
+            );
+
+        margin-top: 25px;
+    }
+
+    .admin-section {
+        padding: 20px;
+
+        border-radius: 18px;
+    }
+
+    .admin-head {
+        flex-direction: column;
+
+        gap: 18px;
+    }
+
+    .admin-head .btn {
+        width: 100%;
+    }
+
+    .admin-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* =========================================================
+   PHONE NAVIGATION
+   ========================================================= */
+
+@media (max-width: 750px) {
+
+    .nav {
+        min-height: 64px;
+
+        padding:
+            10px 12px;
+
+        gap: 10px;
+
+        align-items: center;
+    }
+
+    .logo {
+        font-size: 20px;
+    }
+
+    .links {
+        gap: 7px;
+    }
+
+    .links a.nav-hide {
+        display: none;
+    }
+
+    .links > a {
+        font-size: 13px;
+    }
+
+    .links .btn {
+        min-height: 40px;
+
+        padding:
+            8px 12px;
+
+        font-size: 13px;
+    }
+
+    .links form .btn {
+        min-height: 40px;
+
+        padding:
+            8px 12px;
+
+        font-size: 13px;
+    }
+}
+
+
+/* =========================================================
+   ADMIN PHONE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    .admin-page {
+        width:
+            calc(100% - 20px);
+
+        margin:
+            20px auto
+            50px;
+    }
+
+    .admin-head {
+        margin-bottom: 25px;
+    }
+
+    .admin-head h1 {
+        font-size: 34px;
+    }
+
+    .admin-section {
+        padding: 15px;
+
+        margin-bottom: 22px;
+
+        border-radius: 16px;
+    }
+
+    .section-head h2 {
+        font-size: 25px;
+    }
+
+    .admin-user {
+        padding: 15px;
+
+        border-radius: 15px;
+    }
+
+    .admin-user-main {
+        align-items: flex-start;
+
+        gap: 12px;
+    }
+
+    .admin-avatar {
+        width: 48px;
+        height: 48px;
+
+        min-width: 48px;
+
+        border-radius: 13px;
+
+        font-size: 19px;
+    }
+
+    .admin-user-info strong {
+        font-size: 16px;
+    }
+
+    .admin-user-info > span {
+        font-size: 13px;
+    }
+
+    .admin-actions {
+        align-items: stretch;
+
+        flex-direction: column;
+    }
+
+    .admin-actions > .btn,
+    .admin-actions > form,
+    .admin-actions > form .btn,
+    .admin-actions > form select {
+        width: 100%;
+
+        box-sizing: border-box;
+    }
+
+    .admin-details {
+        margin-top: 4px;
+    }
+
+    .admin-form .btn {
+        width: 100%;
+    }
+
+    .admin-card {
+        padding: 16px;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 360px) {
+
+    .nav {
+        padding:
+            9px 9px;
+    }
+
+    .logo {
+        font-size: 18px;
+
+        letter-spacing: 1px;
+    }
+
+    .links {
+        gap: 4px;
+    }
+
+    .links > a {
+        font-size: 12px;
+    }
+
+    .links .btn,
+    .links form .btn {
+        padding:
+            7px 9px;
+
+        font-size: 12px;
+    }
+
+    .admin-page {
+        width:
+            calc(100% - 14px);
+    }
+
+    .admin-section {
+        padding: 12px;
+    }
+
+    .admin-user {
+        padding: 12px;
+    }
+
+    .admin-user-main {
+        gap: 10px;
+    }
+
+    .admin-avatar {
+        width: 43px;
+        height: 43px;
+
+        min-width: 43px;
+    }
+
+    .admin-head h1 {
+        font-size: 30px;
+    }
+
+    .otp-input {
+        letter-spacing: 3px;
+    }
+}
+
+
+/* =========================================================
+   HERO MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    .hero {
+        min-height: 500px;
+
+        padding:
+            60px 20px;
+    }
+
+    .hero h1 {
+        font-size:
+            clamp(
+                42px,
+                15vw,
+                70px
+            );
+    }
+
+    .wrap {
+        padding:
+            35px 16px;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+
+        gap: 13px;
+    }
+
+    .card {
+        padding: 18px;
+
+        border-radius: 15px;
+    }
+}
+
+
+/* =========================================================
+   NO HORIZONTAL SCROLL
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    table,
+    pre {
+        max-width: 100%;
+
+        overflow-x: auto;
+    }
+
+    input,
+    textarea,
+    select,
+    button {
+        max-width: 100%;
+    }
+}
+
+
+/* =========================================================
+   MOTOHUB 4-SECOND ENTRANCE
+   ========================================================= */
+
+#motohub-loader {
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 99999;
+
+    background: #030303;
+
+    overflow: hidden;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    opacity: 1;
+
+    visibility: visible;
+}
+
+#motohub-loader.is-leaving {
+    animation:
+        mhLoaderOut
+        .65s
+        ease
+        forwards;
+
+    pointer-events: none;
+}
+
+#motohub-loader .mh-scene {
+    position: absolute;
+
+    inset: -4%;
+
+    background-image:
+        linear-gradient(
+            90deg,
+            rgba(0,0,0,.48),
+            rgba(0,0,0,.05) 48%,
+            rgba(0,0,0,.42)
+        ),
+        url('/static/assets/motohub-loader.png');
+
+    background-position: center;
+
+    background-size: cover;
+
+    background-repeat: no-repeat;
+
+    animation:
+        mhScene
+        4s
+        cubic-bezier(.18,.72,.2,1)
+        forwards;
+}
+
+#motohub-loader .mh-vignette {
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        radial-gradient(
+            circle at center,
+            transparent 28%,
+            rgba(0,0,0,.2) 60%,
+            rgba(0,0,0,.82) 100%
+        );
+}
+
+#motohub-loader .mh-scan {
+    position: absolute;
+
+    left: 0;
+    right: 0;
+
+    height: 2px;
+
+    top: -4%;
+
+    background:
+        rgba(255,35,48,.45);
+
+    box-shadow:
+        0 0 18px
+        rgba(255,35,48,.65);
+
+    animation:
+        mhScan
+        4s
+        linear
+        forwards;
+}
+
+#motohub-loader .mh-copy {
+    position: absolute;
+
+    left: 7%;
+    top: 7%;
+
+    font-weight: 900;
+
+    letter-spacing: 3px;
+
+    text-transform: uppercase;
+
+    text-shadow:
+        0 3px 18px #000;
+
+    animation:
+        mhCopy
+        .9s
+        ease-out
+        forwards;
+}
+
+#motohub-loader .mh-copy strong {
+    font-size:
+        clamp(
+            26px,
+            4vw,
+            54px
+        );
+
+    display: block;
+
+    color: #fff;
+}
+
+#motohub-loader .mh-copy span {
+    font-size: 12px;
+
+    color: #ff2636;
+
+    letter-spacing: 5px;
+}
+
+#motohub-loader .mh-status {
+    position: absolute;
+
+    left: 50%;
+    bottom: 9%;
+
+    transform:
+        translateX(-50%);
+
+    width:
+        min(
+            560px,
+            72vw
+        );
+
+    text-align: center;
+
+    text-shadow:
+        0 2px 12px #000;
+}
+
+#motohub-loader .mh-status-title {
+    font-size:
+        clamp(
+            16px,
+            2vw,
+            25px
+        );
+
+    font-weight: 800;
+
+    margin-bottom: 13px;
+}
+
+#motohub-loader .mh-bar {
+    height: 7px;
+
+    border-radius: 99px;
+
+    background: #303237;
+
+    overflow: hidden;
+
+    border:
+        1px solid
+        #52545a;
+
+    box-shadow:
+        0 0 25px
+        rgba(255,30,45,.16);
+}
+
+#motohub-loader .mh-bar i {
+    display: block;
+
+    width: 0;
+
+    height: 100%;
+
+    background:
+        linear-gradient(
+            90deg,
+            #ff1528,
+            #ff4350
+        );
+
+    box-shadow:
+        0 0 18px
+        rgba(255,30,45,.9);
+
+    animation:
+        mhProgress
+        4s
+        linear
+        forwards;
+}
+
+#motohub-loader .mh-meta {
+    display: flex;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    margin-top: 9px;
+
+    color: #c4c5c8;
+
+    font-size: 12px;
+
+    letter-spacing: 1px;
+}
+
+#motohub-loader .mh-count {
+    color: #ff3141;
+
+    font-weight: 900;
+}
+
+
+@keyframes mhScene {
+
+    0% {
+        transform:
+            scale(1.04)
+            translate3d(-1.5%,1%,0);
+
+        filter:
+            brightness(.65)
+            contrast(1.1);
+    }
+
+    18% {
+        filter:
+            brightness(.8)
+            contrast(1.14);
+    }
+
+    55% {
+        transform:
+            scale(1.085)
+            translate3d(1%,0,0);
+
+        filter:
+            brightness(.96)
+            contrast(1.16);
+    }
+
+    100% {
+        transform:
+            scale(1.12)
+            translate3d(2%,-.5%,0);
+
+        filter:
+            brightness(1.08)
+            contrast(1.2);
+    }
+
+}
+
+
+@keyframes mhProgress {
+
+    0% {
+        width: 0;
+    }
+
+    12% {
+        width: 13%;
+    }
+
+    28% {
+        width: 31%;
+    }
+
+    45% {
+        width: 48%;
+    }
+
+    67% {
+        width: 72%;
+    }
+
+    84% {
+        width: 88%;
+    }
+
+    100% {
+        width: 100%;
+    }
+
+}
+
+
+@keyframes mhScan {
+
+    0% {
+        top: -3%;
+    }
+
+    100% {
+        top: 103%;
+    }
+
+}
+
+
+@keyframes mhCopy {
+
+    0% {
+        opacity: 0;
+
+        transform:
+            translateY(-14px);
+    }
+
+    100% {
+        opacity: 1;
+
+        transform:
+            translateY(0);
+    }
+
+}
+
+
+@keyframes mhLoaderOut {
+
+    0% {
+        opacity: 1;
+
+        visibility: visible;
+    }
+
+    100% {
+        opacity: 0;
+
+        visibility: hidden;
+    }
+
+}
+
+
+/* =========================================================
+   LOADER MOBILE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    #motohub-loader .mh-copy {
+        left: 5%;
+
+        top: 5%;
+    }
+
+    #motohub-loader .mh-status {
+        bottom: 7%;
+
+        width: 86vw;
+    }
+
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    #motohub-loader .mh-scene,
+    #motohub-loader .mh-bar i,
+    #motohub-loader .mh-scan,
+    #motohub-loader .mh-copy {
+        animation: none;
+    }
+
+    #motohub-loader .mh-bar i {
+        width: 100% !important;
+    }
+
+    #motohub-loader {
+        display: none !important;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- =======================================================
+     LOADING SCREEN
+     ======================================================= -->
+
+<div
+    id="motohub-loader"
+    aria-label="Загрузка MotoHub"
+>
+
+    <div class="mh-scene"></div>
+
+    <div class="mh-vignette"></div>
+
+    <div class="mh-scan"></div>
+
+
+    <div class="mh-copy">
+
+        <strong>
+            MOTO<span style="color:#ff2636">HUB</span>
+        </strong>
+
+        <span>
+            REGULMOTO SK200-9
+        </span>
+
+    </div>
+
+
+    <div class="mh-status">
+
+        <div class="mh-status-title">
+            Загружаем MotoHub...
+        </div>
+
+        <div class="mh-bar">
+            <i></i>
+        </div>
+
+        <div class="mh-meta">
+
+            <span>
+                Сообщество мотоциклистов
+            </span>
+
+            <span
+                class="mh-count"
+                id="mh-count"
+            >
+                0 / 4
+            </span>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =======================================================
+     NAVIGATION
+     ======================================================= -->
+
+<nav class="nav">
+
+
+    <a
+        class="logo"
+        href="/"
+    >
+        MOTO<span>HUB</span>
+    </a>
+
+
+    <div class="links">
+
+
+        <a
+            class="nav-hide"
+            href="/#events"
+        >
+            События
+        </a>
+
+
+        <a
+            class="nav-hide"
+            href="/#news"
+        >
+            Новости
+        </a>
+
+
+        {% if user %}
+
+
+            <a href="/profile">
+                👤 Профиль
+            </a>
+
+
+            <a
+                href="/chat"
+                onclick="return openChat(event)"
+            >
+                💬 Чат
+            </a>
+
+
+            {% if user.role in ['ADMIN','MODERATOR'] %}
+
+                <a href="/admin">
+                    Админка
+                </a>
+
+            {% endif %}
+
+
+            <form
+                method="post"
+                action="/logout"
+            >
+
+                <button
+                    class="btn"
+                    type="submit"
+                >
+                    Выйти
+                </button>
+
+            </form>
+
+
+        {% else %}
+
+
+            <a
+                class="btn"
+                href="/login"
+            >
+                Войти
+            </a>
+
+
+        {% endif %}
+
+
+    </div>
+
+</nav>
+
+
+<!-- =======================================================
+     PAGE CONTENT
+     ======================================================= -->
+
+{% block content %}{% endblock %}
+
+
+<!-- =======================================================
+     CHAT WINDOW
+     ======================================================= -->
+
+<script>
+
+function openChat(event) {
+
+    event.preventDefault();
+
+    /*
+     * На компьютере открываем чат
+     * в отдельном окне.
+     */
+
+    if (window.innerWidth > 750) {
+
+        window.open(
+            "/chat",
+            "motohub_chat",
+            "width=1200,height=800,resizable=yes,scrollbars=yes"
+        );
+
+        return false;
+    }
+
+    /*
+     * На телефоне открываем обычную страницу.
+     */
+
+    window.location.href = "/chat";
+
+    return false;
+}
+
+</script>
+
+
+<!-- =======================================================
+     LOADING SCREEN SCRIPT
+     ======================================================= -->
+
+<script>
+
+(function () {
+
+    const loader =
+        document.getElementById(
+            "motohub-loader"
+        );
+
+    if (!loader) {
+        return;
+    }
+
+
+    const key =
+        "motohub_intro_seen_v1";
+
+
+    /*
+     * Если пользователь уже видел
+     * заставку в этой вкладке —
+     * больше не показываем.
+     */
+
+    try {
+
+        if (
+            sessionStorage.getItem(key)
+            === "1"
+        ) {
+
+            loader.remove();
+
+            return;
+        }
+
+    } catch (error) {
+        /*
+         * Если sessionStorage недоступен,
+         * просто продолжаем загрузку.
+         */
+    }
+
+
+    const count =
+        document.getElementById(
+            "mh-count"
+        );
+
+
+    const start =
+        performance.now();
+
+
+    const duration =
+        4000;
+
+
+    function tick(currentTime) {
+
+        const progress =
+            Math.min(
+                (currentTime - start)
+                / duration,
+                1
+            );
+
+
+        if (count) {
+
+            count.textContent =
+                (
+                    Math.min(
+                        4,
+                        Math.floor(
+                            progress * 5
+                        )
+                    )
+                )
+                + " / 4";
+
+        }
+
+
+        if (progress < 1) {
+
+            requestAnimationFrame(
+                tick
+            );
+
+        }
+
+    }
+
+
+    requestAnimationFrame(
+        tick
+    );
+
+
+    setTimeout(
+        function () {
+
+            try {
+
+                sessionStorage.setItem(
+                    key,
+                    "1"
+                );
+
+            } catch (error) {
+                /*
+                 * Ничего страшного.
+                 */
+            }
+
+
+            loader.classList.add(
+                "is-leaving"
+            );
+
+
+            setTimeout(
+                function () {
+
+                    loader.remove();
+
+                },
+                700
+            );
+
+        },
+        4000
+    );
+
+})();
+
+</script>
+
+
+</body>
+
+</html>
