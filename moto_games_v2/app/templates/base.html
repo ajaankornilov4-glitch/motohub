@@ -703,7 +703,54 @@ textarea.input {
     flex-direction: column;
 
     gap: 14px;
+
+    /*
+     * Список участников теперь
+     * прокручивается отдельно.
+     */
+
+    max-height: 620px;
+
+    overflow-y: auto;
+
+    overflow-x: hidden;
+
+    padding-right: 8px;
+
+    scrollbar-width: thin;
+
+    scrollbar-color:
+        #454b4f
+        #111415;
 }
+
+
+/* Chrome / Edge / Яндекс */
+
+.admin-users::-webkit-scrollbar {
+    width: 8px;
+}
+
+.admin-users::-webkit-scrollbar-track {
+    background: #111415;
+
+    border-radius: 10px;
+}
+
+.admin-users::-webkit-scrollbar-thumb {
+    background: #454b4f;
+
+    border-radius: 10px;
+}
+
+.admin-users::-webkit-scrollbar-thumb:hover {
+    background: #626a6e;
+}
+
+
+/* =========================================================
+   ADMIN — USER CARD
+   ========================================================= */
 
 .admin-user {
     padding: 20px;
@@ -717,6 +764,8 @@ textarea.input {
     background: #111415;
 
     min-width: 0;
+
+    flex-shrink: 0;
 
     transition:
         border-color .2s ease,
@@ -1077,48 +1126,6 @@ summary::before {
 
 
 /* =========================================================
-   MOBILE AUTH
-   ========================================================= */
-
-@media (max-width: 600px) {
-
-    .form {
-        width:
-            calc(100% - 24px);
-
-        margin:
-            35px auto;
-
-        padding: 22px 18px;
-
-        border-radius: 17px;
-    }
-
-    .form h1 {
-        font-size: 32px;
-    }
-
-    .form .input {
-        min-height: 54px;
-
-        font-size: 16px;
-    }
-
-    .form .btn {
-        min-height: 54px;
-
-        font-size: 16px;
-    }
-
-    .otp-input {
-        font-size: 25px !important;
-
-        letter-spacing: 5px;
-    }
-}
-
-
-/* =========================================================
    TABLET
    ========================================================= */
 
@@ -1157,60 +1164,7 @@ summary::before {
 
 
 /* =========================================================
-   PHONE NAVIGATION
-   ========================================================= */
-
-@media (max-width: 750px) {
-
-    .nav {
-        min-height: 64px;
-
-        padding:
-            10px 12px;
-
-        gap: 10px;
-
-        align-items: center;
-    }
-
-    .logo {
-        font-size: 20px;
-    }
-
-    .links {
-        gap: 7px;
-    }
-
-    .links a.nav-hide {
-        display: none;
-    }
-
-    .links > a {
-        font-size: 13px;
-    }
-
-    .links .btn {
-        min-height: 40px;
-
-        padding:
-            8px 12px;
-
-        font-size: 13px;
-    }
-
-    .links form .btn {
-        min-height: 40px;
-
-        padding:
-            8px 12px;
-
-        font-size: 13px;
-    }
-}
-
-
-/* =========================================================
-   ADMIN PHONE
+   PHONE
    ========================================================= */
 
 @media (max-width: 600px) {
@@ -1243,6 +1197,20 @@ summary::before {
     .section-head h2 {
         font-size: 25px;
     }
+
+
+    /*
+     * На телефоне список чуть меньше,
+     * чтобы пользователю было удобно
+     * видеть остальные разделы.
+     */
+
+    .admin-users {
+        max-height: 500px;
+
+        padding-right: 5px;
+    }
+
 
     .admin-user {
         padding: 15px;
@@ -1305,7 +1273,7 @@ summary::before {
 
 
 /* =========================================================
-   VERY SMALL PHONES
+   VERY SMALL PHONE
    ========================================================= */
 
 @media (max-width: 360px) {
@@ -1435,7 +1403,7 @@ summary::before {
 
 
 /* =========================================================
-   MOTOHUB 4-SECOND ENTRANCE
+   LOADING SCREEN
    ========================================================= */
 
 #motohub-loader {
@@ -1677,6 +1645,10 @@ summary::before {
 }
 
 
+/* =========================================================
+   LOADER ANIMATIONS
+   ========================================================= */
+
 @keyframes mhScene {
 
     0% {
@@ -1717,7 +1689,6 @@ summary::before {
 
 }
 
-
 @keyframes mhProgress {
 
     0% {
@@ -1750,7 +1721,6 @@ summary::before {
 
 }
 
-
 @keyframes mhScan {
 
     0% {
@@ -1762,7 +1732,6 @@ summary::before {
     }
 
 }
-
 
 @keyframes mhCopy {
 
@@ -1781,7 +1750,6 @@ summary::before {
     }
 
 }
-
 
 @keyframes mhLoaderOut {
 
@@ -1867,7 +1835,6 @@ summary::before {
 
     <div class="mh-scan"></div>
 
-
     <div class="mh-copy">
 
         <strong>
@@ -1879,7 +1846,6 @@ summary::before {
         </span>
 
     </div>
-
 
     <div class="mh-status">
 
@@ -1917,7 +1883,6 @@ summary::before {
 
 <nav class="nav">
 
-
     <a
         class="logo"
         href="/"
@@ -1927,7 +1892,6 @@ summary::before {
 
 
     <div class="links">
-
 
         <a
             class="nav-hide"
@@ -1946,7 +1910,6 @@ summary::before {
 
 
         {% if user %}
-
 
             <a href="/profile">
                 👤 Профиль
@@ -1987,7 +1950,6 @@ summary::before {
 
         {% else %}
 
-
             <a
                 class="btn"
                 href="/login"
@@ -1995,9 +1957,7 @@ summary::before {
                 Войти
             </a>
 
-
         {% endif %}
-
 
     </div>
 
@@ -2012,7 +1972,7 @@ summary::before {
 
 
 <!-- =======================================================
-     CHAT WINDOW
+     CHAT
      ======================================================= -->
 
 <script>
@@ -2021,10 +1981,6 @@ function openChat(event) {
 
     event.preventDefault();
 
-    /*
-     * На компьютере открываем чат
-     * в отдельном окне.
-     */
 
     if (window.innerWidth > 750) {
 
@@ -2037,9 +1993,6 @@ function openChat(event) {
         return false;
     }
 
-    /*
-     * На телефоне открываем обычную страницу.
-     */
 
     window.location.href = "/chat";
 
@@ -2050,7 +2003,7 @@ function openChat(event) {
 
 
 <!-- =======================================================
-     LOADING SCREEN SCRIPT
+     LOADING SCRIPT
      ======================================================= -->
 
 <script>
@@ -2062,6 +2015,7 @@ function openChat(event) {
             "motohub-loader"
         );
 
+
     if (!loader) {
         return;
     }
@@ -2070,12 +2024,6 @@ function openChat(event) {
     const key =
         "motohub_intro_seen_v1";
 
-
-    /*
-     * Если пользователь уже видел
-     * заставку в этой вкладке —
-     * больше не показываем.
-     */
 
     try {
 
@@ -2090,10 +2038,7 @@ function openChat(event) {
         }
 
     } catch (error) {
-        /*
-         * Если sessionStorage недоступен,
-         * просто продолжаем загрузку.
-         */
+
     }
 
 
@@ -2124,12 +2069,10 @@ function openChat(event) {
         if (count) {
 
             count.textContent =
-                (
-                    Math.min(
-                        4,
-                        Math.floor(
-                            progress * 5
-                        )
+                Math.min(
+                    4,
+                    Math.floor(
+                        progress * 5
                     )
                 )
                 + " / 4";
@@ -2164,9 +2107,7 @@ function openChat(event) {
                 );
 
             } catch (error) {
-                /*
-                 * Ничего страшного.
-                 */
+
             }
 
 
