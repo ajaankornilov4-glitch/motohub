@@ -1,3134 +1,2395 @@
-{% extends "base.html" %}
+import hashlib
+import os
+import secrets
+import uuid
 
-{% block title %}Чат — MotoHub{% endblock %}
+from datetime import datetime, timedelta
+from pathlib import Path
 
-{% block content %}
+from dotenv import load_dotenv
 
-<style>
-/* =====================================================
-   MOTOHUB TELEGRAM-STYLE CHAT
-   ===================================================== */
+from fastapi import (
+    FastAPI,
+    Request,
+    Form,
+    WebSocket,
+    WebSocketDisconnect,
+    UploadFile,
+    File,
+    HTTPException,
+)
 
-.chat-page {
-    width: 100%;
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 20px 0 30px;
-}
-
-.chatapp {
-    display: grid;
-    grid-template-columns: 340px minmax(0, 1fr);
-    height: calc(100vh - 150px);
-    min-height: 560px;
-
-    background:
-        radial-gradient(
-            circle at 70% 20%,
-            rgba(255, 38, 54, .06),
-            transparent 30%
-        ),
-        #101214;
-
-    border: 1px solid #292d30;
-    border-radius: 22px;
-    overflow: hidden;
-    box-shadow:
-        0 20px 70px rgba(0,0,0,.35);
-}
-
-
-/* =====================================================
-   LEFT SIDE
-   ===================================================== */
-
-.chat-side {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-
-    background: #0d0f10;
-    border-right: 1px solid #292d30;
-}
-
-.chat-side-head {
-    padding: 18px;
-    border-bottom: 1px solid #292d30;
-}
-
-.chat-side-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-}
-
-.chat-side-title h1 {
-    margin: 0;
-    font-size: 22px;
-    font-weight: 900;
-    letter-spacing: -.4px;
-}
-
-.chat-online {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-
-    font-size: 11px;
-    color: #8e969a;
-}
-
-.chat-online-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #38d26f;
-    box-shadow: 0 0 10px rgba(56,210,111,.45);
-}
-
-.chat-search {
-    width: 100%;
-    box-sizing: border-box;
-
-    padding: 11px 13px;
-
-    border: 1px solid #2b3033;
-    border-radius: 12px;
-
-    outline: none;
-
-    background: #171a1c;
-    color: #fff;
-
-    font-size: 14px;
-
-    transition:
-        border-color .2s,
-        background .2s;
-}
-
-.chat-search::placeholder {
-    color: #747c80;
-}
-
-.chat-search:focus {
-    border-color: #454b4f;
-    background: #1b1e20;
-}
-
-
-/* =====================================================
-   USER LIST
-   ===================================================== */
-
-.chat-users {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
-.chat-users::-webkit-scrollbar {
-    width: 7px;
-}
-
-.chat-users::-webkit-scrollbar-thumb {
-    background: #2c3134;
-    border-radius: 20px;
-}
-
-.chat-user {
-    width: 100%;
-    box-sizing: border-box;
-
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    padding: 12px 15px;
-
-    border: 0;
-    border-bottom: 1px solid rgba(255,255,255,.035);
-
-    background: transparent;
-    color: #fff;
-
-    text-align: left;
-    cursor: pointer;
-
-    transition:
-        background .15s,
-        transform .15s;
-}
-
-.chat-user:hover {
-    background: #171a1c;
-}
-
-.chat-user.active {
-    background: #202427;
-}
-
-.chat-avatar {
-    position: relative;
-
-    flex: 0 0 46px;
-
-    width: 46px;
-    height: 46px;
-
-    border-radius: 50%;
-
-    overflow: hidden;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background:
-        linear-gradient(
-            145deg,
-            #292d30,
-            #17191b
-        );
-
-    color: #d8dcde;
-
-    font-weight: 900;
-    font-size: 16px;
-}
-
-.chat-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.chat-avatar-online {
-    position: absolute;
-    right: 1px;
-    bottom: 1px;
-
-    width: 11px;
-    height: 11px;
-
-    border: 2px solid #0d0f10;
-    border-radius: 50%;
-
-    background: #697176;
-}
-
-.chat-avatar-online.online {
-    background: #35d36d;
-}
-
-.chat-user-info {
-    min-width: 0;
-    flex: 1;
-}
-
-.chat-user-name {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-
-    min-width: 0;
-
-    font-size: 14px;
-    font-weight: 800;
-}
-
-.chat-user-name span:first-child {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.chat-user-role {
-    flex: 0 0 auto;
-
-    font-size: 9px;
-    font-weight: 800;
-
-    padding: 3px 5px;
-
-    border-radius: 5px;
-
-    color: #ff5a65;
-    background: rgba(255,38,54,.1);
-}
-
-.chat-user-sub {
-    margin-top: 4px;
-
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    color: #7e878b;
-    font-size: 12px;
-}
-
-.chat-unread {
-    min-width: 20px;
-    height: 20px;
-
-    display: none;
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 50%;
-
-    background: #ff2636;
-    color: white;
-
-    font-size: 10px;
-    font-weight: 900;
-}
-
-.chat-unread.show {
-    display: flex;
-}
-
-
-/* =====================================================
-   RIGHT CHAT
-   ===================================================== */
-
-.chat-main {
-    min-width: 0;
-    min-height: 0;
-
-    display: flex;
-    flex-direction: column;
-
-    position: relative;
-
-    background:
-        radial-gradient(
-            circle at 20% 10%,
-            rgba(255,255,255,.025),
-            transparent 30%
-        ),
-        #111416;
-}
-
-
-/* =====================================================
-   CHAT HEADER
-   ===================================================== */
-
-.chat-head {
-    min-height: 72px;
-
-    box-sizing: border-box;
-
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    padding: 11px 18px;
-
-    border-bottom: 1px solid #292d30;
-
-    background: rgba(13,15,16,.94);
-
-    backdrop-filter: blur(15px);
-}
-
-.chat-back {
-    display: none;
-
-    width: 38px;
-    height: 38px;
-
-    border: 0;
-    border-radius: 11px;
-
-    background: #1b1e20;
-    color: white;
-
-    font-size: 20px;
-
-    cursor: pointer;
-}
-
-.chat-head-avatar {
-    width: 43px;
-    height: 43px;
-
-    flex: 0 0 43px;
-
-    overflow: hidden;
-
-    border-radius: 50%;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: #252a2d;
-
-    color: white;
-    font-weight: 900;
-}
-
-.chat-head-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.chat-head-info {
-    min-width: 0;
-}
-
-.chat-head-name {
-    font-size: 15px;
-    font-weight: 900;
-
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.chat-head-status {
-    margin-top: 3px;
-
-    color: #727b80;
-    font-size: 11px;
-}
-
-.chat-head-status.online {
-    color: #43d875;
-}
-
-
-/* =====================================================
-   EMPTY STATE
-   ===================================================== */
-
-.chat-empty {
-    flex: 1;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: 30px;
-
-    text-align: center;
-}
-
-.chat-empty-inner {
-    max-width: 330px;
-}
-
-.chat-empty-icon {
-    width: 76px;
-    height: 76px;
-
-    margin: 0 auto 20px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 22px;
-
-    background:
-        linear-gradient(
-            145deg,
-            rgba(255,38,54,.18),
-            rgba(255,38,54,.04)
-        );
-
-    border: 1px solid rgba(255,38,54,.18);
-
-    font-size: 35px;
-}
-
-.chat-empty h2 {
-    margin: 0 0 8px;
-
-    font-size: 21px;
-    font-weight: 900;
-}
-
-.chat-empty p {
-    margin: 0;
-
-    color: #747c80;
-    font-size: 13px;
-    line-height: 1.6;
-}
-
-
-/* =====================================================
-   MESSAGES
-   ===================================================== */
-
-.chat-messages {
-    flex: 1;
-    min-height: 0;
-
-    overflow-y: auto;
-    overflow-x: hidden;
-
-    padding: 20px 20px 12px;
-
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-}
-
-.chat-messages::-webkit-scrollbar {
-    width: 7px;
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-    background: #2c3134;
-    border-radius: 20px;
-}
-
-.chat-message-row {
-    width: 100%;
-
-    display: flex;
-
-    box-sizing: border-box;
-}
-
-.chat-message-row.mine {
-    justify-content: flex-end;
-}
-
-.chat-message {
-    max-width: min(70%, 650px);
-
-    min-width: 0;
-
-    padding: 8px 11px 6px;
-
-    border-radius: 15px;
-
-    background: #202427;
-    border: 1px solid #2a2f32;
-
-    box-shadow:
-        0 3px 12px rgba(0,0,0,.12);
-}
-
-.chat-message.mine {
-    background:
-        linear-gradient(
-            145deg,
-            #5e1820,
-            #39151a
-        );
-
-    border-color: #6a242c;
-}
+from fastapi.responses import (
+    HTMLResponse,
+    RedirectResponse,
+    JSONResponse,
+)
+
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
-.chat-message-author {
-    margin-bottom: 4px;
+from itsdangerous import (
+    URLSafeSerializer,
+    BadSignature,
+)
 
-    color: #ff5965;
+from .db import (
+    init_db,
+    conn,
+    get_user,
+    get_user_by_id,
+    create_user,
+    now,
+)
 
-    font-size: 11px;
-    font-weight: 900;
-}
-
-.chat-message-text {
-    color: #f1f3f4;
-
-    font-size: 14px;
-    line-height: 1.45;
-
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-.chat-message-meta {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 5px;
-
-    margin-top: 3px;
-
-    color: #747d81;
-
-    font-size: 9px;
-}
-
-.chat-message.mine .chat-message-meta {
-    color: #c18b91;
-}
-
-
-/* =====================================================
-   MEDIA
-   ===================================================== */
-
-.chat-media {
-    margin: -2px -3px 7px;
-
-    max-width: 100%;
-
-    overflow: hidden;
-
-    border-radius: 11px;
-
-    background: #080909;
-}
-
-.chat-media img {
-    display: block;
-
-    width: 100%;
-    max-width: 560px;
-
-    max-height: 430px;
-
-    object-fit: contain;
-
-    cursor: pointer;
-}
-
-.chat-media video {
-    display: block;
-
-    width: 100%;
-    max-width: 600px;
-
-    max-height: 450px;
-
-    background: #000;
-}
-
-.chat-file-name {
-    padding: 7px 9px;
-
-    color: #8f989c;
-
-    font-size: 10px;
-
-    word-break: break-word;
-}
-
-
-/* =====================================================
-   COMPOSER
-   ===================================================== */
-
-.chat-composer {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-
-    padding: 10px 14px 14px;
-
-    border-top: 1px solid #292d30;
-
-    background: #0d0f10;
-}
-
-.chat-attach {
-    width: 42px;
-    height: 42px;
-
-    flex: 0 0 42px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border: 1px solid #2b3033;
-    border-radius: 12px;
-
-    background: #171a1c;
-    color: #b6bdc0;
-
-    font-size: 20px;
-
-    cursor: pointer;
-
-    transition:
-        background .15s,
-        color .15s,
-        border-color .15s;
-}
-
-.chat-attach:hover {
-    color: white;
-    border-color: #454b4f;
-    background: #1d2022;
-}
-
-.chat-input-wrap {
-    min-width: 0;
-    flex: 1;
-
-    display: flex;
-    align-items: flex-end;
-
-    border: 1px solid #2b3033;
-    border-radius: 14px;
-
-    background: #171a1c;
-
-    transition: border-color .2s;
-}
-
-.chat-input-wrap:focus-within {
-    border-color: #464d51;
-}
-
-.chat-input {
-    width: 100%;
-    min-height: 42px;
-    max-height: 130px;
-
-    box-sizing: border-box;
-
-    resize: none;
-
-    padding: 11px 13px;
-
-    border: 0;
-    outline: 0;
-
-    background: transparent;
-    color: white;
-
-    font: inherit;
-    font-size: 14px;
-    line-height: 20px;
-}
-
-.chat-input::placeholder {
-    color: #70787c;
-}
-
-.chat-send {
-    width: 42px;
-    height: 42px;
-
-    flex: 0 0 42px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border: 0;
-    border-radius: 12px;
-
-    background: #ff2636;
-    color: white;
-
-    font-size: 18px;
-    font-weight: 900;
-
-    cursor: pointer;
-
-    box-shadow:
-        0 6px 20px rgba(255,38,54,.18);
-
-    transition:
-        transform .15s,
-        filter .15s;
-}
-
-.chat-send:hover {
-    filter: brightness(1.08);
-    transform: translateY(-1px);
-}
-
-.chat-send:active {
-    transform: translateY(0);
-}
-
-.chat-send:disabled {
-    opacity: .45;
-    cursor: not-allowed;
-    transform: none;
-}
-
-
-/* =====================================================
-   UPLOAD PREVIEW
-   ===================================================== */
-
-.chat-upload-preview {
-    display: none;
-
-    padding: 8px 14px;
-
-    border-top: 1px solid #292d30;
-
-    background: #121516;
-}
-
-.chat-upload-preview.show {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.preview-thumb {
-    width: 48px;
-    height: 48px;
-
-    overflow: hidden;
-
-    border-radius: 9px;
-
-    background: #080909;
-}
-
-.preview-thumb img,
-.preview-thumb video {
-    width: 100%;
-    height: 100%;
-
-    object-fit: cover;
-}
-
-.preview-info {
-    min-width: 0;
-    flex: 1;
-}
-
-.preview-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    color: #ddd;
-
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.preview-size {
-    margin-top: 3px;
-
-    color: #6f787c;
-    font-size: 10px;
-}
-
-.preview-remove {
-    width: 32px;
-    height: 32px;
-
-    border: 0;
-    border-radius: 9px;
-
-    background: #24282a;
-    color: #aaa;
+from .emailer import send_otp
 
-    cursor: pointer;
-}
-
-
-/* =====================================================
-   TOAST
-   ===================================================== */
-
-.chat-toast {
-    position: fixed;
-
-    left: 50%;
-    bottom: 25px;
-
-    z-index: 9999;
 
-    transform:
-        translate(-50%, 20px);
+# =========================================================
+# CONFIG
+# =========================================================
 
-    opacity: 0;
+load_dotenv()
 
-    pointer-events: none;
+BASE = Path(__file__).resolve().parent.parent
 
-    padding: 11px 16px;
+UPLOADS = BASE / "static" / "uploads"
+CHAT_UPLOADS = UPLOADS / "chat"
 
-    border: 1px solid #343a3d;
-    border-radius: 12px;
+UPLOADS.mkdir(
+    parents=True,
+    exist_ok=True,
+)
 
-    background: #171a1c;
-    color: white;
+CHAT_UPLOADS.mkdir(
+    parents=True,
+    exist_ok=True,
+)
 
-    box-shadow:
-        0 15px 40px rgba(0,0,0,.45);
 
-    font-size: 12px;
+# =========================================================
+# FILE LIMITS
+# =========================================================
 
-    transition:
-        opacity .2s,
-        transform .2s;
-}
+MAX_AVATAR_SIZE = 4 * 1024 * 1024
 
-.chat-toast.show {
-    opacity: 1;
+# Фото: 300 МБ
+MAX_CHAT_IMAGE_SIZE = 300 * 1024 * 1024
 
-    transform:
-        translate(-50%, 0);
-}
+# Видео: 500 МБ
+MAX_CHAT_VIDEO_SIZE = 500 * 1024 * 1024
 
 
-/* =====================================================
-   MOBILE
-   ===================================================== */
-
-@media (max-width: 800px) {
-
-    .chat-page {
-        padding: 0;
-        margin: 0;
-
-        height: calc(100vh - 80px);
-    }
-
-    .chatapp {
-        position: relative;
-
-        width: 100%;
-        height: 100%;
-        min-height: 0;
-
-        display: block;
-
-        border-radius: 0;
-        border-left: 0;
-        border-right: 0;
-    }
-
-    .chat-side {
-        position: absolute;
-        inset: 0;
-        z-index: 5;
-
-        border-right: 0;
-
-        transition:
-            transform .25s ease;
-    }
-
-    .chat-main {
-        position: absolute;
-        inset: 0;
-        z-index: 10;
-
-        transform:
-            translateX(100%);
-
-        transition:
-            transform .25s ease;
-    }
-
-    .chatapp.mobile-chat-open .chat-side {
-        transform:
-            translateX(-20%);
-    }
-
-    .chatapp.mobile-chat-open .chat-main {
-        transform:
-            translateX(0);
-    }
-
-    .chat-back {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .chat-head {
-        min-height: 62px;
-        padding: 8px 11px;
-    }
-
-    .chat-messages {
-        padding: 14px 10px 9px;
-    }
-
-    .chat-message {
-        max-width: 84%;
-    }
-
-    .chat-composer {
-        padding:
-            8px
-            8px
-            max(
-                8px,
-                env(safe-area-inset-bottom)
-            );
-    }
-
-    .chat-attach,
-    .chat-send {
-        width: 40px;
-        height: 40px;
-        flex-basis: 40px;
-    }
-
-    .chat-input {
-        min-height: 40px;
-    }
-
-    .chat-side-head {
-        padding:
-            14px
-            12px;
-    }
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/gif",
 }
-
-
-/* =====================================================
-   VERY SMALL PHONES
-   ===================================================== */
-
-@media (max-width: 390px) {
-
-    .chat-side-title h1 {
-        font-size: 20px;
-    }
 
-    .chat-user {
-        padding: 10px 11px;
-    }
-
-    .chat-avatar {
-        width: 42px;
-        height: 42px;
-        flex-basis: 42px;
-    }
-
-    .chat-message {
-        max-width: 89%;
-    }
-
-    .chat-message-text {
-        font-size: 13px;
-    }
-
-    .chat-attach {
-        font-size: 18px;
-    }
+ALLOWED_VIDEO_TYPES = {
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
 }
-</style>
-
-
-<div class="chat-page">
-
-    <div
-        class="chatapp"
-        id="chatApp"
-    >
-
-        <!-- =================================================
-             LEFT — DIALOGS
-             ================================================= -->
-
-        <aside class="chat-side">
-
-            <div class="chat-side-head">
-
-                <div class="chat-side-title">
-
-                    <h1>Чаты</h1>
-
-                    <div class="chat-online">
-                        <span
-                            class="chat-online-dot"
-                        ></span>
-
-                        <span id="onlineCount">
-                            онлайн
-                        </span>
-                    </div>
-
-                </div>
-
-                <input
-                    id="chatSearch"
-                    class="chat-search"
-                    type="search"
-                    placeholder="Поиск участников..."
-                    autocomplete="off"
-                >
-
-            </div>
-
-
-            <div
-                class="chat-users"
-                id="chatUsers"
-            ></div>
-
-        </aside>
-
-
-        <!-- =================================================
-             RIGHT — CHAT
-             ================================================= -->
-
-        <main class="chat-main">
-
-            <header
-                class="chat-head"
-                id="chatHead"
-            >
-
-                <button
-                    type="button"
-                    class="chat-back"
-                    id="chatBack"
-                    aria-label="Назад"
-                >
-                    ←
-                </button>
-
-
-                <div
-                    class="chat-head-avatar"
-                    id="chatHeadAvatar"
-                >
-                    💬
-                </div>
-
-
-                <div class="chat-head-info">
-
-                    <div
-                        class="chat-head-name"
-                        id="chatHeadName"
-                    >
-                        MotoHub
-                    </div>
-
-                    <div
-                        class="chat-head-status"
-                        id="chatHeadStatus"
-                    >
-                        Выберите участника
-                    </div>
-
-                </div>
-
-            </header>
-
-
-            <!-- =================================================
-                 EMPTY
-                 ================================================= -->
-
-            <section
-                class="chat-empty"
-                id="chatEmpty"
-            >
-
-                <div class="chat-empty-inner">
-
-                    <div class="chat-empty-icon">
-                        💬
-                    </div>
-
-                    <h2>
-                        MotoHub Chat
-                    </h2>
-
-                    <p>
-                        Выберите участника слева,
-                        чтобы начать личный разговор.
-                    </p>
-
-                </div>
-
-            </section>
-
-
-            <!-- =================================================
-                 MESSAGES
-                 ================================================= -->
-
-            <section
-                class="chat-messages"
-                id="chatMessages"
-                style="display:none"
-            ></section>
-
-
-            <!-- =================================================
-                 PREVIEW
-                 ================================================= -->
-
-            <div
-                class="chat-upload-preview"
-                id="uploadPreview"
-            >
-
-                <div
-                    class="preview-thumb"
-                    id="previewThumb"
-                ></div>
-
-                <div class="preview-info">
-
-                    <div
-                        class="preview-name"
-                        id="previewName"
-                    ></div>
-
-                    <div
-                        class="preview-size"
-                        id="previewSize"
-                    ></div>
-
-                </div>
-
-                <button
-                    type="button"
-                    class="preview-remove"
-                    id="previewRemove"
-                >
-                    ✕
-                </button>
-
-            </div>
-
-
-            <!-- =================================================
-                 COMPOSER
-                 ================================================= -->
-
-            <form
-                class="chat-composer"
-                id="chatComposer"
-                style="display:none"
-            >
-
-                <input
-                    type="file"
-                    id="chatFile"
-                    accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
-                    hidden
-                >
-
-                <button
-                    type="button"
-                    class="chat-attach"
-                    id="chatAttach"
-                    title="Фото или видео"
-                >
-                    📎
-                </button>
 
 
-                <div class="chat-input-wrap">
+# =========================================================
+# APP
+# =========================================================
 
-                    <textarea
-                        id="chatInput"
-                        class="chat-input"
-                        rows="1"
-                        placeholder="Написать сообщение..."
-                    ></textarea>
+app = FastAPI(
+    title="MotoHub"
+)
 
-                </div>
+templates = Jinja2Templates(
+    directory=str(
+        Path(__file__).parent / "templates"
+    )
+)
 
+app.mount(
+    "/static",
+    StaticFiles(
+        directory=str(
+            BASE / "static"
+        )
+    ),
+    name="static",
+)
 
-                <button
-                    type="submit"
-                    class="chat-send"
-                    id="chatSend"
-                    title="Отправить"
-                >
-                    ➤
-                </button>
+serializer = URLSafeSerializer(
+    os.getenv(
+        "SECRET_KEY",
+        "dev-secret"
+    )
+)
 
-            </form>
 
-        </main>
+# =========================================================
+# STARTUP
+# =========================================================
 
-    </div>
+@app.on_event("startup")
+def startup():
+    init_db()
 
-</div>
 
+# =========================================================
+# AUTH
+# =========================================================
 
-<div
-    class="chat-toast"
-    id="chatToast"
-></div>
+def session_email(request: Request):
 
+    token = request.cookies.get(
+        "motohub_session"
+    )
 
-<script>
-(function () {
+    if not token:
+        return None
 
-    "use strict";
+    try:
 
+        data = serializer.loads(
+            token
+        )
 
-    /* =====================================================
-       STATE
-       ===================================================== */
+        return data.get(
+            "email"
+        )
 
-    const currentUserEmail =
-        {{ user.email|tojson }};
+    except BadSignature:
 
-    const currentUserId =
-        {{ user.id|tojson }};
+        return None
 
-    let users = [];
 
-    let selectedUser = null;
+def session_user(request: Request):
 
-    let socket = null;
+    email = session_email(
+        request
+    )
 
-    let uploadedFile = null;
+    if not email:
+        return None
 
-    let onlineUsers = new Set();
+    return get_user(
+        email
+    )
 
-    let reconnectTimer = null;
 
+def ws_user(ws: WebSocket):
 
-    /* =====================================================
-       ELEMENTS
-       ===================================================== */
+    token = ws.cookies.get(
+        "motohub_session"
+    )
 
-    const app =
-        document.getElementById(
-            "chatApp"
-        );
+    if not token:
+        return None
 
-    const usersBox =
-        document.getElementById(
-            "chatUsers"
-        );
+    try:
 
-    const search =
-        document.getElementById(
-            "chatSearch"
-        );
+        data = serializer.loads(
+            token
+        )
 
-    const messages =
-        document.getElementById(
-            "chatMessages"
-        );
+        email = data.get(
+            "email"
+        )
 
-    const empty =
-        document.getElementById(
-            "chatEmpty"
-        );
+        if not email:
+            return None
 
-    const composer =
-        document.getElementById(
-            "chatComposer"
-        );
+        return get_user(
+            email
+        )
 
-    const input =
-        document.getElementById(
-            "chatInput"
-        );
+    except BadSignature:
 
-    const send =
-        document.getElementById(
-            "chatSend"
-        );
+        return None
 
-    const attach =
-        document.getElementById(
-            "chatAttach"
-        );
 
-    const file =
-        document.getElementById(
-            "chatFile"
-        );
+def clean_email(email: str):
 
-    const uploadPreview =
-        document.getElementById(
-            "uploadPreview"
-        );
+    return email.strip().lower()
 
-    const previewThumb =
-        document.getElementById(
-            "previewThumb"
-        );
 
-    const previewName =
-        document.getElementById(
-            "previewName"
-        );
+def public_user(row):
 
-    const previewSize =
-        document.getElementById(
-            "previewSize"
-        );
+    data = dict(row)
 
-    const previewRemove =
-        document.getElementById(
-            "previewRemove"
-        );
+    data.pop(
+        "muted_until",
+        None
+    )
 
-    const back =
-        document.getElementById(
-            "chatBack"
-        );
+    data.pop(
+        "is_banned",
+        None
+    )
 
-    const headAvatar =
-        document.getElementById(
-            "chatHeadAvatar"
-        );
+    data.pop(
+        "password_hash",
+        None
+    )
 
-    const headName =
-        document.getElementById(
-            "chatHeadName"
-        );
+    return data
 
-    const headStatus =
-        document.getElementById(
-            "chatHeadStatus"
-        );
 
-    const onlineCount =
-        document.getElementById(
-            "onlineCount"
-        );
+# =========================================================
+# HOME
+# =========================================================
 
-    const toast =
-        document.getElementById(
-            "chatToast"
-        );
+@app.get(
+    "/",
+    response_class=HTMLResponse
+)
+def home(
+    request: Request
+):
 
+    c = conn()
 
-    /* =====================================================
-       TOAST
-       ===================================================== */
+    news = c.execute(
+        """
+        SELECT *
+        FROM news
+        ORDER BY id DESC
+        LIMIT 6
+        """
+    ).fetchall()
 
-    function showToast(text) {
+    events = c.execute(
+        """
+        SELECT *
+        FROM events
+        ORDER BY starts_at ASC
+        LIMIT 6
+        """
+    ).fetchall()
 
-        toast.textContent = text;
+    c.close()
 
-        toast.classList.add(
-            "show"
-        );
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "news": news,
+            "events": events,
+            "user": session_user(
+                request
+            ),
+        }
+    )
 
-        clearTimeout(
-            toast._timer
-        );
 
-        toast._timer =
-            setTimeout(
-                function () {
+# =========================================================
+# LOGIN PAGE
+# =========================================================
 
-                    toast.classList.remove(
-                        "show"
-                    );
+@app.get(
+    "/login",
+    response_class=HTMLResponse
+)
+def login(
+    request: Request
+):
 
-                },
-                2600
-            );
-    }
+    return templates.TemplateResponse(
+        "login.html",
+        {
+            "request": request,
+            "error": None,
+        }
+    )
 
 
-    /* =====================================================
-       AVATAR
-       ===================================================== */
+# =========================================================
+# REQUEST OTP
+# =========================================================
 
-    function avatarHtml(
-        user,
-        online = false
-    ) {
+@app.post(
+    "/auth/request"
+)
+def request_code(
+    email: str = Form(...)
+):
 
-        let avatar = "";
+    email = clean_email(
+        email
+    )
 
-        if (
-            user
-            && user.avatar_url
-        ) {
+    if (
+        "@"
+        not in email
+        or "."
+        not in email.split("@")[-1]
+    ):
 
-            avatar =
-                `<img
-                    src="${escapeHtml(
-                        user.avatar_url
-                    )}"
-                    alt=""
-                >`;
+        return RedirectResponse(
+            "/login?error=Неверный email",
+            303
+        )
 
-        } else {
+    c = conn()
 
-            const name =
-                (
-                    user.display_name
-                    || user.email
-                    || "?"
+    recent = c.execute(
+        """
+        SELECT id
+        FROM otp
+        WHERE email=?
+          AND created_at>?
+        """,
+        (
+            email,
+            (
+                now()
+                - timedelta(
+                    seconds=60
                 )
-                .trim();
+            ).isoformat(),
+        )
+    ).fetchone()
 
-            const letter =
-                name
-                    .charAt(0)
-                    .toUpperCase();
+    if recent:
 
-            avatar =
-                `<span>${escapeHtml(
-                    letter
-                )}</span>`;
+        c.close()
+
+        return RedirectResponse(
+            "/login?error=Подождите 60 секунд",
+            303
+        )
+
+    code = (
+        f"{secrets.randbelow(1000000):06d}"
+    )
+
+    code_hash = hashlib.sha256(
+        code.encode()
+    ).hexdigest()
+
+    created = now()
+
+    c.execute(
+        """
+        INSERT INTO otp(
+            email,
+            code_hash,
+            expires_at,
+            created_at
+        )
+        VALUES(?,?,?,?)
+        """,
+        (
+            email,
+            code_hash,
+            (
+                created
+                + timedelta(
+                    minutes=10
+                )
+            ).isoformat(),
+            created.isoformat(),
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    try:
+
+        send_otp(
+            email,
+            code
+        )
+
+    except Exception:
+
+        return RedirectResponse(
+            "/login?error=Не удалось отправить код на email",
+            303
+        )
+
+    return RedirectResponse(
+        f"/verify?email={email}",
+        303
+    )
+
+
+# =========================================================
+# VERIFY PAGE
+# =========================================================
+
+@app.get(
+    "/verify",
+    response_class=HTMLResponse
+)
+def verify_page(
+    request: Request,
+    email: str
+):
+
+    return templates.TemplateResponse(
+        "verify.html",
+        {
+            "request": request,
+            "email": email,
+            "error": None,
         }
-
-        return `
-            ${avatar}
-
-            <span
-                class="chat-avatar-online ${
-                    online
-                        ? "online"
-                        : ""
-                }"
-            ></span>
-        `;
-    }
+    )
 
 
-    /* =====================================================
-       ESCAPE
-       ===================================================== */
+# =========================================================
+# VERIFY OTP
+# =========================================================
 
-    function escapeHtml(value) {
+@app.post(
+    "/auth/verify"
+)
+def verify(
+    email: str = Form(...),
+    code: str = Form(...)
+):
 
-        return String(
-            value ?? ""
+    email = clean_email(
+        email
+    )
+
+    c = conn()
+
+    row = c.execute(
+        """
+        SELECT *
+        FROM otp
+        WHERE email=?
+          AND consumed=0
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (
+            email,
         )
-        .replace(
-            /&/g,
-            "&amp;"
+    ).fetchone()
+
+    if not row:
+
+        c.close()
+
+        return RedirectResponse(
+            f"/verify?email={email}&error=Код не найден",
+            303
         )
-        .replace(
-            /</g,
-            "&lt;"
+
+    if (
+        datetime.fromisoformat(
+            row["expires_at"]
         )
-        .replace(
-            />/g,
-            "&gt;"
+        < now()
+    ):
+
+        c.close()
+
+        return RedirectResponse(
+            f"/verify?email={email}&error=Код истёк",
+            303
         )
-        .replace(
-            /"/g,
-            "&quot;"
+
+    if row["attempts"] >= 5:
+
+        c.close()
+
+        return RedirectResponse(
+            f"/verify?email={email}&error=Слишком много попыток",
+            303
         )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-    }
 
+    entered_hash = hashlib.sha256(
+        code.strip().encode()
+    ).hexdigest()
 
-    /* =====================================================
-       DATE
-       ===================================================== */
+    if entered_hash != row["code_hash"]:
 
-    function formatTime(
-        value
-    ) {
-
-        if (!value) {
-            return "";
-        }
-
-        const date =
-            new Date(
-                value.endsWith("Z")
-                    ? value
-                    : value + "Z"
-            );
-
-        if (
-            Number.isNaN(
-                date.getTime()
+        c.execute(
+            """
+            UPDATE otp
+            SET attempts=attempts+1
+            WHERE id=?
+            """,
+            (
+                row["id"],
             )
-        ) {
-            return "";
-        }
+        )
 
-        return date.toLocaleTimeString(
-            [],
+        c.commit()
+        c.close()
+
+        return RedirectResponse(
+            f"/verify?email={email}&error=Неверный код",
+            303
+        )
+
+    c.execute(
+        """
+        UPDATE otp
+        SET consumed=1
+        WHERE id=?
+        """,
+        (
+            row["id"],
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    create_user(
+        email
+    )
+
+    response = RedirectResponse(
+        "/",
+        303
+    )
+
+    response.set_cookie(
+        "motohub_session",
+        serializer.dumps(
             {
-                hour: "2-digit",
-                minute: "2-digit"
+                "email": email
             }
-        );
-    }
+        ),
+        httponly=True,
+        samesite="lax",
+        max_age=604800,
+    )
+
+    return response
 
 
-    /* =====================================================
-       FILE SIZE
-       ===================================================== */
+# =========================================================
+# LOGOUT
+# =========================================================
 
-    function formatSize(
-        bytes
-    ) {
+@app.post(
+    "/logout"
+)
+def logout():
 
-        if (
-            bytes < 1024
-        ) {
-            return bytes + " Б";
+    response = RedirectResponse(
+        "/",
+        303
+    )
+
+    response.delete_cookie(
+        "motohub_session"
+    )
+
+    return response
+
+
+# =========================================================
+# PROFILE
+# =========================================================
+
+@app.get(
+    "/profile",
+    response_class=HTMLResponse
+)
+def my_profile(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
+
+    if not user:
+
+        return RedirectResponse(
+            "/login",
+            303
+        )
+
+    return RedirectResponse(
+        f"/profile/{user['id']}",
+        303
+    )
+
+
+@app.get(
+    "/profile/{user_id}",
+    response_class=HTMLResponse
+)
+def profile_page(
+    request: Request,
+    user_id: int
+):
+
+    viewer = session_user(
+        request
+    )
+
+    profile = get_user_by_id(
+        user_id
+    )
+
+    if not profile:
+
+        return RedirectResponse(
+            "/",
+            303
+        )
+
+    c = conn()
+
+    achievements = c.execute(
+        """
+        SELECT
+            a.*,
+            e.title AS event_title,
+            e.starts_at,
+            e.location
+        FROM achievements a
+        LEFT JOIN events e
+            ON e.id = a.event_id
+        WHERE a.user_id=?
+        ORDER BY
+            COALESCE(
+                e.starts_at,
+                a.created_at
+            ) DESC,
+            a.id DESC
+        """,
+        (
+            user_id,
+        )
+    ).fetchall()
+
+    stats = c.execute(
+        """
+        SELECT
+            COUNT(*) total,
+
+            SUM(
+                CASE
+                    WHEN place=1
+                    THEN 1
+                    ELSE 0
+                END
+            ) firsts,
+
+            SUM(
+                CASE
+                    WHEN place=2
+                    THEN 1
+                    ELSE 0
+                END
+            ) seconds,
+
+            SUM(
+                CASE
+                    WHEN place=3
+                    THEN 1
+                    ELSE 0
+                END
+            ) thirds
+
+        FROM achievements
+
+        WHERE user_id=?
+        """,
+        (
+            user_id,
+        )
+    ).fetchone()
+
+    c.close()
+
+    return templates.TemplateResponse(
+        "profile.html",
+        {
+            "request": request,
+            "user": viewer,
+            "profile": profile,
+            "achievements": achievements,
+            "stats": stats,
         }
-
-        if (
-            bytes < 1024 * 1024
-        ) {
-            return (
-                (bytes / 1024)
-                    .toFixed(1)
-                + " КБ"
-            );
-        }
-
-        return (
-            (bytes / 1024 / 1024)
-                .toFixed(1)
-            + " МБ"
-        );
-    }
-
-
-    /* =====================================================
-       LOAD USERS
-       ===================================================== */
-
-    async function loadUsers() {
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/chat/users"
-                );
-
-            if (!response.ok) {
-                throw new Error();
-            }
-
-            users =
-                await response.json();
-
-            renderUsers();
-
-        } catch (error) {
-
-            showToast(
-                "Не удалось загрузить участников"
-            );
-        }
-    }
-
-
-    /* =====================================================
-       RENDER USERS
-       ===================================================== */
-
-    function renderUsers() {
-
-        const query =
-            search.value
-                .trim()
-                .toLowerCase();
-
-        const filtered =
-            users.filter(
-                function (user) {
-
-                    const text = (
-                        user.display_name
-                        || ""
-                    )
-                    + " "
-                    + (
-                        user.email
-                        || ""
-                    )
-                    + " "
-                    + (
-                        user.city
-                        || ""
-                    )
-                    + " "
-                    + (
-                        user.motorcycle
-                        || ""
-                    );
-
-                    return text
-                        .toLowerCase()
-                        .includes(
-                            query
-                        );
-                }
-            );
-
-
-        usersBox.innerHTML = "";
-
-
-        if (
-            !filtered.length
-        ) {
-
-            usersBox.innerHTML = `
-                <div
-                    style="
-                        padding:30px 18px;
-                        text-align:center;
-                        color:#697276;
-                        font-size:12px;
-                    "
-                >
-                    Участники не найдены
-                </div>
-            `;
-
-            return;
-        }
-
-
-        filtered.forEach(
-            function (user) {
-
-                const button =
-                    document.createElement(
-                        "button"
-                    );
-
-                button.type =
-                    "button";
-
-                button.className =
-                    "chat-user"
-                    + (
-                        selectedUser
-                        && selectedUser.id
-                            === user.id
-                            ? " active"
-                            : ""
-                    );
-
-                button.dataset.id =
-                    user.id;
-
-
-                const online =
-                    onlineUsers.has(
-                        user.id
-                    );
-
-
-                const name =
-                    user.display_name
-                    || user.email
-                    || "Участник";
-
-
-                const subtitle =
-                    online
-                        ? "в сети"
-                        : (
-                            user.city
-                            || user.motorcycle
-                            || "Участник MotoHub"
-                        );
-
-
-                button.innerHTML = `
-
-                    <div class="chat-avatar">
-                        ${avatarHtml(
-                            user,
-                            online
-                        )}
-                    </div>
-
-                    <div class="chat-user-info">
-
-                        <div class="chat-user-name">
-
-                            <span>
-                                ${escapeHtml(
-                                    name
-                                )}
-                            </span>
-
-                            ${
-                                user.role
-                                === "ADMIN"
-                                    ? `
-                                        <span
-                                            class="chat-user-role"
-                                        >
-                                            ADMIN
-                                        </span>
-                                    `
-                                    : ""
-                            }
-
-                            ${
-                                user.role
-                                === "MODERATOR"
-                                    ? `
-                                        <span
-                                            class="chat-user-role"
-                                        >
-                                            MOD
-                                        </span>
-                                    `
-                                    : ""
-                            }
-
-                        </div>
-
-                        <div class="chat-user-sub">
-                            ${escapeHtml(
-                                subtitle
-                            )}
-                        </div>
-
-                    </div>
-
-                    <span
-                        class="chat-unread"
-                        data-unread="${user.id}"
-                    ></span>
-                `;
-
-
-                button.addEventListener(
-                    "click",
-                    function () {
-
-                        openChat(
-                            user
-                        );
-
-                    }
-                );
-
-
-                usersBox.appendChild(
-                    button
-                );
-
-            }
-        );
-
-    }
-
-
-    /* =====================================================
-       OPEN CHAT
-       ===================================================== */
-
-    async function openChat(
-        user
-    ) {
-
-        selectedUser =
-            user;
-
-
-        app.classList.add(
-            "mobile-chat-open"
-        );
-
-
-        empty.style.display =
-            "none";
-
-        messages.style.display =
-            "flex";
-
-        composer.style.display =
-            "flex";
-
-
-        headName.textContent =
-            user.display_name
-            || user.email
-            || "Участник";
-
-
-        if (
-            user.avatar_url
-        ) {
-
-            headAvatar.innerHTML =
-                `<img
-                    src="${escapeHtml(
-                        user.avatar_url
-                    )}"
-                    alt=""
-                >`;
-
-        } else {
-
-            const letter =
-                (
-                    user.display_name
-                    || user.email
-                    || "?"
-                )
-                .charAt(0)
-                .toUpperCase();
-
-            headAvatar.innerHTML =
-                `<span>${escapeHtml(
-                    letter
-                )}</span>`;
-        }
-
-
-        updateHeadStatus();
-
-
-        document
-            .querySelectorAll(
-                ".chat-user"
+    )
+
+
+# =========================================================
+# PROFILE UPDATE
+# =========================================================
+
+@app.post(
+    "/profile/update"
+)
+async def profile_update(
+    request: Request,
+    display_name: str = Form(""),
+    bio: str = Form(""),
+    motorcycle: str = Form(""),
+    city: str = Form(""),
+    avatar: UploadFile | None = File(None),
+):
+
+    user = session_user(
+        request
+    )
+
+    if not user:
+
+        return RedirectResponse(
+            "/login",
+            303
+        )
+
+    avatar_url = user[
+        "avatar_url"
+    ]
+
+    if (
+        avatar
+        and avatar.filename
+    ):
+
+        extension = Path(
+            avatar.filename
+        ).suffix.lower()
+
+        if extension not in {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+        }:
+
+            return RedirectResponse(
+                "/profile?error=Формат фото не поддерживается",
+                303
             )
-            .forEach(
-                function (el) {
-
-                    el.classList.toggle(
-                        "active",
-                        Number(
-                            el.dataset.id
-                        )
-                        === user.id
-                    );
-
-                }
-            );
-
-
-        messages.innerHTML = "";
-
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/chat/messages/"
-                    + user.id
-                );
-
-            if (
-                response.ok
-            ) {
-
-                const history =
-                    await response.json();
-
-                history.forEach(
-                    function (message) {
-
-                        appendMessage(
-                            message
-                        );
-
-                    }
-                );
-
-                scrollMessages();
-
-            }
-
-            await fetch(
-                "/api/chat/read/"
-                + user.id,
-                {
-                    method: "POST"
-                }
-            );
-
-        } catch (error) {
-
-            showToast(
-                "Не удалось загрузить сообщения"
-            );
-        }
-
-
-        renderUsers();
-    }
-
-
-    /* =====================================================
-       BACK MOBILE
-       ===================================================== */
-
-    back.addEventListener(
-        "click",
-        function () {
-
-            app.classList.remove(
-                "mobile-chat-open"
-            );
-
-        }
-    );
-
-
-    /* =====================================================
-       STATUS
-       ===================================================== */
-
-    function updateHeadStatus() {
 
         if (
-            !selectedUser
-        ) {
-
-            headStatus.textContent =
-                "Выберите участника";
-
-            headStatus.classList.remove(
-                "online"
-            );
-
-            return;
-        }
-
-
-        const online =
-            onlineUsers.has(
-                selectedUser.id
-            );
-
-
-        if (online) {
-
-            headStatus.textContent =
-                "в сети";
-
-            headStatus.classList.add(
-                "online"
-            );
-
-        } else {
-
-            headStatus.textContent =
-                "не в сети";
-
-            headStatus.classList.remove(
-                "online"
-            );
-        }
-    }
-
-
-    /* =====================================================
-       APPEND MESSAGE
-       ===================================================== */
-
-    function appendMessage(
-        message
-    ) {
-
-        if (
-            !message
-        ) {
-            return;
-        }
-
-
-        const mine =
-            message.email
-            === currentUserEmail;
-
-
-        const row =
-            document.createElement(
-                "div"
-            );
-
-        row.className =
-            "chat-message-row"
-            + (
-                mine
-                    ? " mine"
-                    : ""
-            );
-
-
-        const bubble =
-            document.createElement(
-                "div"
-            );
-
-        bubble.className =
-            "chat-message"
-            + (
-                mine
-                    ? " mine"
-                    : ""
-            );
-
-
-        let html = "";
-
-
-        /* -------------------------------------------------
-           AUTHOR
-           ------------------------------------------------- */
-
-        if (
-            !mine
-            && !selectedUser
-        ) {
-
-            html += `
-                <div
-                    class="chat-message-author"
-                >
-                    ${escapeHtml(
-                        message.display_name
-                        || message.email
-                        || "Участник"
-                    )}
-                </div>
-            `;
-
-        } else if (
-            !mine
-            && !message.recipient_id
-        ) {
-
-            html += `
-                <div
-                    class="chat-message-author"
-                >
-                    ${escapeHtml(
-                        message.display_name
-                        || message.email
-                        || "Участник"
-                    )}
-                </div>
-            `;
-        }
-
-
-        /* -------------------------------------------------
-           IMAGE
-           ------------------------------------------------- */
-
-        if (
-            message.attachment_url
-            && message.attachment_type
-                === "image"
-        ) {
-
-            html += `
-                <div class="chat-media">
-
-                    <img
-                        src="${escapeHtml(
-                            message.attachment_url
-                        )}"
-                        alt=""
-                        loading="lazy"
-                        onclick="window.open(
-                            this.src,
-                            '_blank'
-                        )"
-                    >
-
-                    ${
-                        message.attachment_name
-                            ? `
-                                <div
-                                    class="chat-file-name"
-                                >
-                                    ${escapeHtml(
-                                        message.attachment_name
-                                    )}
-                                </div>
-                            `
-                            : ""
-                    }
-
-                </div>
-            `;
-        }
-
-
-        /* -------------------------------------------------
-           VIDEO
-           ------------------------------------------------- */
-
-        if (
-            message.attachment_url
-            && message.attachment_type
-                === "video"
-        ) {
-
-            html += `
-                <div class="chat-media">
-
-                    <video
-                        controls
-                        preload="metadata"
-                        playsinline
-                        src="${escapeHtml(
-                            message.attachment_url
-                        )}"
-                    ></video>
-
-                    ${
-                        message.attachment_name
-                            ? `
-                                <div
-                                    class="chat-file-name"
-                                >
-                                    ${escapeHtml(
-                                        message.attachment_name
-                                    )}
-                                </div>
-                            `
-                            : ""
-                    }
-
-                </div>
-            `;
-        }
-
-
-        /* -------------------------------------------------
-           TEXT
-           ------------------------------------------------- */
-
-        if (
-            message.text
-            && message.text.trim()
-        ) {
-
-            html += `
-                <div
-                    class="chat-message-text"
-                >
-                    ${escapeHtml(
-                        message.text
-                    )}
-                </div>
-            `;
-        }
-
-
-        /* -------------------------------------------------
-           META
-           ------------------------------------------------- */
-
-        html += `
-            <div
-                class="chat-message-meta"
-            >
-                <span>
-                    ${formatTime(
-                        message.created_at
-                    )}
-                </span>
-
-                ${
-                    mine
-                        ? `
-                            <span>
-                                ${
-                                    message.is_read
-                                        ? "✓✓"
-                                        : "✓"
-                                }
-                            </span>
-                        `
-                        : ""
-                }
-            </div>
-        `;
-
-
-        bubble.innerHTML =
-            html;
-
-
-        row.appendChild(
-            bubble
-        );
-
-        messages.appendChild(
-            row
-        );
-    }
-
-
-    /* =====================================================
-       SCROLL
-       ===================================================== */
-
-    function scrollMessages() {
-
-        requestAnimationFrame(
-            function () {
-
-                messages.scrollTop =
-                    messages.scrollHeight;
-
-            }
-        );
-    }
-
-
-    /* =====================================================
-       SOCKET CONNECT
-       ===================================================== */
-
-    function connectSocket() {
-
-        if (
-            socket
-            && (
-                socket.readyState
-                    === WebSocket.OPEN
-                ||
-                socket.readyState
-                    === WebSocket.CONNECTING
+            avatar.content_type
+            and not avatar.content_type.startswith(
+                "image/"
             )
-        ) {
-            return;
+        ):
+
+            return RedirectResponse(
+                "/profile?error=Это не изображение",
+                303
+            )
+
+        data = await avatar.read()
+
+        if len(data) > MAX_AVATAR_SIZE:
+
+            return RedirectResponse(
+                "/profile?error=Фото больше 4 МБ",
+                303
+            )
+
+        filename = (
+            f"user_{user['id']}"
+            f"{extension}"
+        )
+
+        (
+            UPLOADS / filename
+        ).write_bytes(
+            data
+        )
+
+        avatar_url = (
+            f"/static/uploads/{filename}"
+        )
+
+    c = conn()
+
+    c.execute(
+        """
+        UPDATE users
+        SET
+            display_name=?,
+            bio=?,
+            motorcycle=?,
+            city=?,
+            avatar_url=?
+        WHERE id=?
+        """,
+        (
+            display_name.strip()[:80]
+            or None,
+
+            bio.strip()[:500],
+
+            motorcycle.strip()[:100],
+
+            city.strip()[:100],
+
+            avatar_url,
+
+            user["id"],
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    return RedirectResponse(
+        f"/profile/{user['id']}",
+        303
+    )
+
+
+# =========================================================
+# CHAT PAGE
+# =========================================================
+
+@app.get(
+    "/chat",
+    response_class=HTMLResponse
+)
+def chat_page(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
+
+    if not user:
+
+        return RedirectResponse(
+            "/login",
+            303
+        )
+
+    return templates.TemplateResponse(
+        "chat.html",
+        {
+            "request": request,
+            "user": user,
         }
-
-
-        const protocol =
-            location.protocol
-            === "https:"
-                ? "wss:"
-                : "ws:";
-
-
-        socket =
-            new WebSocket(
-                protocol
-                + "//"
-                + location.host
-                + "/ws/chat"
-            );
-
-
-        socket.addEventListener(
-            "open",
-            function () {
-
-                updateConnectionStatus();
-
-            }
-        );
-
-
-        socket.addEventListener(
-            "message",
-            function (event) {
-
-                try {
-
-                    const data =
-                        JSON.parse(
-                            event.data
-                        );
-
-                    handleSocketMessage(
-                        data
-                    );
-
-                } catch (
-                    error
-                ) {
-
-                    console.error(
-                        error
-                    );
-                }
-
-            }
-        );
-
-
-        socket.addEventListener(
-            "close",
-            function () {
-
-                updateConnectionStatus();
-
-                clearTimeout(
-                    reconnectTimer
-                );
-
-                reconnectTimer =
-                    setTimeout(
-                        connectSocket,
-                        2500
-                    );
-
-            }
-        );
-
-
-        socket.addEventListener(
-            "error",
-            function () {
-
-                try {
-                    socket.close();
-                } catch (_) {}
-
-            }
-        );
-    }
-
-
-    /* =====================================================
-       SOCKET MESSAGE
-       ===================================================== */
-
-    function handleSocketMessage(
-        data
-    ) {
-
-        if (
-            data.type
-            === "presence"
-        ) {
-
-            onlineUsers =
-                new Set(
-                    (
-                        data.online
-                        || []
-                    )
-                    .map(
-                        Number
-                    )
-                );
-
-
-            onlineCount.textContent =
-                onlineUsers.size
-                + " онлайн";
-
-
-            renderUsers();
-
-            updateHeadStatus();
-
-            return;
-        }
-
-
-        if (
-            data.type
-            === "public"
-            || data.type
-            === "dm"
-        ) {
-
-            const message =
-                data.message;
-
-
-            if (
-                !message
-            ) {
-                return;
-            }
-
-
-            /* ---------------------------------------------
-               PUBLIC
-               --------------------------------------------- */
-
-            if (
-                data.type
-                === "public"
-            ) {
-
-                /*
-                 * Публичный чат пока не показываем
-                 * в личном диалоге.
-                 */
-
-                return;
-            }
-
-
-            /* ---------------------------------------------
-               PRIVATE
-               --------------------------------------------- */
-
-            const senderIsMe =
-                message.email
-                === currentUserEmail;
-
-
-            const otherId =
-                senderIsMe
-                    ? Number(
-                        message.recipient_id
-                    )
-                    : findUserIdByEmail(
-                        message.email
-                    );
-
-
-            if (
-                selectedUser
-                && Number(
-                    selectedUser.id
-                )
-                === Number(
-                    otherId
-                )
-            ) {
-
-                appendMessage(
-                    message
-                );
-
-                scrollMessages();
-
-                if (
-                    !senderIsMe
-                ) {
-
-                    fetch(
-                        "/api/chat/read/"
-                        + selectedUser.id,
-                        {
-                            method:
-                                "POST"
-                        }
-                    );
-                }
-
-            } else if (
-                !senderIsMe
-            ) {
-
-                const sender =
-                    findUserByEmail(
-                        message.email
-                    );
-
-                if (sender) {
-
-                    const badge =
-                        document.querySelector(
-                            `[data-unread="${sender.id}"]`
-                        );
-
-                    if (badge) {
-
-                        const old =
-                            Number(
-                                badge.textContent
-                                || 0
-                            );
-
-                        badge.textContent =
-                            old + 1;
-
-                        badge.classList.add(
-                            "show"
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-
-    /* =====================================================
-       FIND USER
-       ===================================================== */
-
-    function findUserByEmail(
-        email
-    ) {
-
-        return users.find(
-            function (user) {
-
-                return user.email
-                    === email;
-
-            }
-        );
-    }
-
-
-    function findUserIdByEmail(
-        email
-    ) {
-
-        const user =
-            findUserByEmail(
+    )
+
+
+# =========================================================
+# CHAT USERS
+# =========================================================
+
+@app.get(
+    "/api/chat/users"
+)
+def chat_users(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
+
+    if not user:
+
+        return JSONResponse(
+            {
+                "error": "auth"
+            },
+            status_code=401
+        )
+
+    c = conn()
+
+    rows = c.execute(
+        """
+        SELECT
+            id,
+            email,
+            display_name,
+            role,
+            is_banned,
+            avatar_url,
+            motorcycle,
+            city
+        FROM users
+        WHERE id != ?
+        ORDER BY
+            COALESCE(
+                display_name,
                 email
-            );
+            )
+        """,
+        (
+            user["id"],
+        )
+    ).fetchall()
 
-        return user
-            ? user.id
-            : null;
+    c.close()
+
+    return [
+        public_user(row)
+        for row in rows
+        if not row["is_banned"]
+    ]
+
+
+# =========================================================
+# CHAT HISTORY
+# =========================================================
+
+@app.get(
+    "/api/chat/messages/{other_id}"
+)
+def chat_history(
+    request: Request,
+    other_id: int
+):
+
+    user = session_user(
+        request
+    )
+
+    other = get_user_by_id(
+        other_id
+    )
+
+    if not user:
+
+        return JSONResponse(
+            {
+                "error": "auth"
+            },
+            status_code=401
+        )
+
+    if not other:
+
+        return JSONResponse(
+            {
+                "error": "user_not_found"
+            },
+            status_code=404
+        )
+
+    c = conn()
+
+    rows = c.execute(
+        """
+        SELECT
+            id,
+            email,
+            display_name,
+            text,
+            created_at,
+            recipient_id,
+            is_read,
+            attachment_url,
+            attachment_type,
+            attachment_name
+        FROM messages
+        WHERE recipient_id IS NOT NULL
+        AND (
+            (
+                email=?
+                AND recipient_id=?
+            )
+            OR
+            (
+                email=?
+                AND recipient_id=?
+            )
+        )
+        ORDER BY id DESC
+        LIMIT 100
+        """,
+        (
+            user["email"],
+            other_id,
+
+            other["email"],
+            user["id"],
+        )
+    ).fetchall()
+
+    c.close()
+
+    return [
+        dict(row)
+        for row in reversed(rows)
+    ]
+
+
+# =========================================================
+# MARK READ
+# =========================================================
+
+@app.post(
+    "/api/chat/read/{other_id}"
+)
+def mark_read(
+    request: Request,
+    other_id: int
+):
+
+    user = session_user(
+        request
+    )
+
+    other = get_user_by_id(
+        other_id
+    )
+
+    if not user:
+
+        return JSONResponse(
+            {
+                "error": "auth"
+            },
+            status_code=401
+        )
+
+    if not other:
+
+        return JSONResponse(
+            {
+                "error": "user_not_found"
+            },
+            status_code=404
+        )
+
+    c = conn()
+
+    c.execute(
+        """
+        UPDATE messages
+        SET is_read=1
+        WHERE
+            email=?
+            AND recipient_id=?
+        """,
+        (
+            other["email"],
+            user["id"],
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    return {
+        "ok": True
     }
 
 
-    /* =====================================================
-       SEND MESSAGE
-       ===================================================== */
+# =========================================================
+# UNREAD
+# =========================================================
 
-    async function sendMessage() {
+@app.get(
+    "/api/chat/unread"
+)
+def unread(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
+
+    if not user:
+
+        return JSONResponse(
+            {
+                "error": "auth"
+            },
+            status_code=401
+        )
+
+    c = conn()
+
+    rows = c.execute(
+        """
+        SELECT
+            email,
+            COUNT(*) count
+        FROM messages
+        WHERE
+            recipient_id=?
+            AND is_read=0
+        GROUP BY email
+        """,
+        (
+            user["id"],
+        )
+    ).fetchall()
+
+    c.close()
+
+    return [
+        dict(row)
+        for row in rows
+    ]
+
+
+# =========================================================
+# CHAT UPLOAD
+#
+# PHOTO  = 300 MB
+# VIDEO  = 500 MB
+# =========================================================
+
+@app.post(
+    "/api/chat/upload"
+)
+async def chat_upload(
+    request: Request,
+    file: UploadFile = File(...)
+):
+
+    user = session_user(
+        request
+    )
+
+    if not user:
+
+        return JSONResponse(
+            {
+                "error": "auth"
+            },
+            status_code=401
+        )
+
+    if user["is_banned"]:
+
+        return JSONResponse(
+            {
+                "error": "Аккаунт заблокирован"
+            },
+            status_code=403
+        )
+
+    if not file.filename:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Файл не выбран"
+        )
+
+    content_type = (
+        file.content_type
+        or ""
+    ).lower().strip()
+
+
+    # =====================================================
+    # TYPE
+    # =====================================================
+
+    if content_type in ALLOWED_IMAGE_TYPES:
+
+        attachment_type = "image"
+
+        max_size = (
+            MAX_CHAT_IMAGE_SIZE
+        )
+
+    elif content_type in ALLOWED_VIDEO_TYPES:
+
+        attachment_type = "video"
+
+        max_size = (
+            MAX_CHAT_VIDEO_SIZE
+        )
+
+    else:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Поддерживаются только "
+                "JPG, JPEG, PNG, WEBP, GIF, "
+                "MP4, WEBM и MOV"
+            )
+        )
+
+
+    # =====================================================
+    # EXTENSION
+    # =====================================================
+
+    extension = Path(
+        file.filename
+    ).suffix.lower()
+
+
+    allowed_extensions = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".mp4",
+        ".webm",
+        ".mov",
+    }
+
+
+    if extension not in allowed_extensions:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Расширение файла не поддерживается"
+        )
+
+
+    # =====================================================
+    # UNIQUE NAME
+    # =====================================================
+
+    filename = (
+        uuid.uuid4().hex
+        + extension
+    )
+
+
+    destination = (
+        CHAT_UPLOADS
+        / filename
+    )
+
+
+    # =====================================================
+    # STREAM UPLOAD
+    # =====================================================
+
+    total_size = 0
+
+    chunk_size = 1024 * 1024
+
+
+    try:
+
+        with destination.open(
+            "wb"
+        ) as output:
+
+            while True:
+
+                chunk = await file.read(
+                    chunk_size
+                )
+
+                if not chunk:
+                    break
+
+                total_size += len(
+                    chunk
+                )
+
+
+                # =========================================
+                # SIZE CHECK
+                # =========================================
+
+                if total_size > max_size:
+
+                    output.close()
+
+                    try:
+
+                        destination.unlink(
+                            missing_ok=True
+                        )
+
+                    except Exception:
+                        pass
+
+
+                    if attachment_type == "image":
+
+                        raise HTTPException(
+                            status_code=413,
+                            detail=(
+                                "Фото не должно "
+                                "быть больше 300 МБ"
+                            )
+                        )
+
+                    raise HTTPException(
+                        status_code=413,
+                        detail=(
+                            "Видео не должно "
+                            "быть больше 500 МБ"
+                        )
+                    )
+
+
+                output.write(
+                    chunk
+                )
+
+
+    except HTTPException:
+
+        raise
+
+
+    except Exception:
+
+        try:
+
+            destination.unlink(
+                missing_ok=True
+            )
+
+        except Exception:
+            pass
+
+
+        raise HTTPException(
+            status_code=500,
+            detail="Ошибка сохранения файла"
+        )
+
+
+    finally:
+
+        try:
+
+            await file.close()
+
+        except Exception:
+            pass
+
+
+    return {
+        "ok": True,
+
+        "url":
+            f"/static/uploads/chat/{filename}",
+
+        "type":
+            attachment_type,
+
+        "name":
+            file.filename,
+
+        "size":
+            total_size,
+    }
+
+
+# =========================================================
+# ADMIN
+# =========================================================
+
+def is_staff(user):
+
+    return (
+        user
+        and user["role"]
+        in (
+            "ADMIN",
+            "MODERATOR",
+        )
+    )
+
+
+def is_admin(user):
+
+    return (
+        user
+        and user["role"]
+        == "ADMIN"
+    )
+
+
+# =========================================================
+# ADMIN PAGE
+# =========================================================
+
+@app.get(
+    "/admin",
+    response_class=HTMLResponse
+)
+def admin(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
+
+    if not is_staff(
+        user
+    ):
+
+        return RedirectResponse(
+            "/",
+            303
+        )
+
+    c = conn()
+
+    users = c.execute(
+        """
+        SELECT *
+        FROM users
+        ORDER BY id DESC
+        """
+    ).fetchall()
+
+    news = c.execute(
+        """
+        SELECT *
+        FROM news
+        ORDER BY id DESC
+        """
+    ).fetchall()
+
+    events = c.execute(
+        """
+        SELECT *
+        FROM events
+        ORDER BY starts_at ASC
+        """
+    ).fetchall()
+
+    c.close()
+
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request,
+            "user": user,
+            "users": users,
+            "news": news,
+            "events": events,
+        }
+    )
+
+
+# =========================================================
+# ADMIN NEWS
+# =========================================================
+
+@app.post(
+    "/admin/news"
+)
+def add_news(
+    request: Request,
+    title: str = Form(...),
+    body: str = Form(...)
+):
+
+    user = session_user(
+        request
+    )
+
+    if not is_staff(
+        user
+    ):
+
+        return RedirectResponse(
+            "/",
+            303
+        )
+
+    c = conn()
+
+    c.execute(
+        """
+        INSERT INTO news(
+            title,
+            body,
+            created_at
+        )
+        VALUES(?,?,?)
+        """,
+        (
+            title.strip(),
+            body.strip(),
+            now().isoformat(),
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    return RedirectResponse(
+        "/admin",
+        303
+    )
+
+
+# =========================================================
+# ADMIN EVENTS
+# =========================================================
+
+@app.post(
+    "/admin/events"
+)
+def add_event(
+    request: Request,
+    title: str = Form(...),
+    description: str = Form(...),
+    starts_at: str = Form(...),
+    location: str = Form("")
+):
+
+    user = session_user(
+        request
+    )
+
+    if not is_staff(
+        user
+    ):
+
+        return RedirectResponse(
+            "/",
+            303
+        )
+
+    c = conn()
+
+    c.execute(
+        """
+        INSERT INTO events(
+            title,
+            description,
+            starts_at,
+            location,
+            created_at
+        )
+        VALUES(?,?,?,?,?)
+        """,
+        (
+            title.strip(),
+            description.strip(),
+            starts_at,
+            location.strip(),
+            now().isoformat(),
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    return RedirectResponse(
+        "/admin",
+        303
+    )
+
+
+# =========================================================
+# ADMIN ROLE
+# =========================================================
+
+@app.post(
+    "/admin/role"
+)
+def role(
+    request: Request,
+    user_id: int = Form(...),
+    role: str = Form(...)
+):
+
+    actor = session_user(
+        request
+    )
+
+    if (
+        not is_admin(actor)
+        or role
+        not in (
+            "USER",
+            "MODERATOR",
+            "ADMIN",
+        )
+    ):
+
+        return RedirectResponse(
+            "/admin",
+            303
+        )
+
+    c = conn()
+
+    c.execute(
+        """
+        UPDATE users
+        SET role=?
+        WHERE id=?
+        """,
+        (
+            role,
+            user_id,
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    return RedirectResponse(
+        "/admin",
+        303
+    )
+
+
+# =========================================================
+# ADMIN BAN
+# =========================================================
+
+@app.post(
+    "/admin/ban"
+)
+def ban(
+    request: Request,
+    user_id: int = Form(...),
+    banned: int = Form(...)
+):
+
+    actor = session_user(
+        request
+    )
+
+    if not is_admin(
+        actor
+    ):
+
+        return RedirectResponse(
+            "/admin",
+            303
+        )
+
+    c = conn()
+
+    c.execute(
+        """
+        UPDATE users
+        SET is_banned=?
+        WHERE id=?
+        """,
+        (
+            1 if banned else 0,
+            user_id,
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    return RedirectResponse(
+        "/admin",
+        303
+    )
+
+
+# =========================================================
+# ADMIN PROFILE
+# =========================================================
+
+@app.post(
+    "/admin/profile"
+)
+def admin_profile(
+    request: Request,
+    user_id: int = Form(...),
+    display_name: str = Form(""),
+    bio: str = Form(""),
+    motorcycle: str = Form(""),
+    city: str = Form("")
+):
+
+    actor = session_user(
+        request
+    )
+
+    if not is_staff(
+        actor
+    ):
+
+        return RedirectResponse(
+            "/admin",
+            303
+        )
+
+    c = conn()
+
+    c.execute(
+        """
+        UPDATE users
+        SET
+            display_name=?,
+            bio=?,
+            motorcycle=?,
+            city=?
+        WHERE id=?
+        """,
+        (
+            display_name.strip()[:80]
+            or None,
+
+            bio.strip()[:500],
+
+            motorcycle.strip()[:100],
+
+            city.strip()[:100],
+
+            user_id,
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    return RedirectResponse(
+        "/admin",
+        303
+    )
+
+
+# =========================================================
+# ADMIN ACHIEVEMENT
+# =========================================================
+
+@app.post(
+    "/admin/achievement"
+)
+def admin_achievement(
+    request: Request,
+    user_id: int = Form(...),
+    event_id: str = Form(""),
+    place: str = Form(""),
+    award: str = Form(""),
+    note: str = Form("")
+):
+
+    actor = session_user(
+        request
+    )
+
+    if not is_staff(
+        actor
+    ):
+
+        return RedirectResponse(
+            "/admin",
+            303
+        )
+
+    event_id_num = None
+
+    if event_id.strip():
+
+        try:
+
+            event_id_num = int(
+                event_id.strip()
+            )
+
+        except ValueError:
+
+            event_id_num = None
+
+
+    place_num = None
+
+    if place.strip():
+
+        try:
+
+            place_num = int(
+                place.strip()
+            )
+
+        except ValueError:
+
+            place_num = None
+
+
+    c = conn()
+
+    c.execute(
+        """
+        INSERT INTO achievements(
+            user_id,
+            event_id,
+            place,
+            award,
+            note,
+            created_at
+        )
+        VALUES(?,?,?,?,?,?)
+        """,
+        (
+            user_id,
+            event_id_num,
+            place_num,
+            award.strip()[:120],
+            note.strip()[:500],
+            now().isoformat(),
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    return RedirectResponse(
+        "/admin",
+        303
+    )
+
+
+# =========================================================
+# DELETE ACHIEVEMENT
+# =========================================================
+
+@app.post(
+    "/admin/achievement/delete"
+)
+def admin_achievement_delete(
+    request: Request,
+    achievement_id: int = Form(...)
+):
+
+    actor = session_user(
+        request
+    )
+
+    if not is_staff(
+        actor
+    ):
+
+        return RedirectResponse(
+            "/admin",
+            303
+        )
+
+    c = conn()
+
+    c.execute(
+        """
+        DELETE FROM achievements
+        WHERE id=?
+        """,
+        (
+            achievement_id,
+        )
+    )
+
+    c.commit()
+    c.close()
+
+    return RedirectResponse(
+        "/admin",
+        303
+    )
+
+
+# =========================================================
+# CHAT MANAGER
+# =========================================================
+
+class ChatManager:
+
+    def __init__(self):
+
+        self.connections = {}
+
+
+    async def connect(
+        self,
+        user_id,
+        ws
+    ):
+
+        await ws.accept()
+
+        self.connections.setdefault(
+            user_id,
+            set()
+        ).add(
+            ws
+        )
+
+
+    def disconnect(
+        self,
+        user_id,
+        ws
+    ):
 
         if (
-            !selectedUser
-        ) {
+            user_id
+            not in self.connections
+        ):
+            return
 
-            showToast(
-                "Сначала выберите чат"
-            );
+        self.connections[
+            user_id
+        ].discard(
+            ws
+        )
 
-            return;
-        }
+        if not self.connections[
+            user_id
+        ]:
 
-
-        const text =
-            input.value.trim();
-
-
-        if (
-            !text
-            && !uploadedFile
-        ) {
-            return;
-        }
+            del self.connections[
+                user_id
+            ]
 
 
-        if (
-            !socket
-            || socket.readyState
-                !== WebSocket.OPEN
-        ) {
+    async def send_user(
+        self,
+        user_id,
+        payload
+    ):
 
-            showToast(
-                "Соединение с чатом потеряно"
-            );
-
-            connectSocket();
-
-            return;
-        }
+        dead = []
 
 
-        send.disabled =
-            true;
+        for ws in list(
+            self.connections.get(
+                user_id,
+                set()
+            )
+        ):
+
+            try:
+
+                await ws.send_json(
+                    payload
+                )
+
+            except Exception:
+
+                dead.append(
+                    ws
+                )
 
 
-        try {
+        for ws in dead:
 
-            let attachment = null;
+            self.disconnect(
+                user_id,
+                ws
+            )
 
 
-            /* ---------------------------------------------
-               UPLOAD FILE
-               --------------------------------------------- */
+    async def broadcast_public(
+        self,
+        payload
+    ):
+
+        for user_id in list(
+            self.connections
+        ):
+
+            await self.send_user(
+                user_id,
+                payload
+            )
+
+
+    def online_ids(self):
+
+        return list(
+            self.connections
+        )
+
+
+manager = ChatManager()
+
+
+# =========================================================
+# PUBLIC CHAT HISTORY
+# =========================================================
+
+def public_history():
+
+    c = conn()
+
+    rows = c.execute(
+        """
+        SELECT
+            id,
+            email,
+            display_name,
+            text,
+            created_at,
+            recipient_id,
+            is_read,
+            attachment_url,
+            attachment_type,
+            attachment_name
+        FROM messages
+        WHERE recipient_id IS NULL
+        ORDER BY id DESC
+        LIMIT 60
+        """
+    ).fetchall()
+
+    c.close()
+
+    return [
+        dict(row)
+        for row in reversed(rows)
+    ]
+
+
+# =========================================================
+# WEBSOCKET CHAT
+# =========================================================
+
+@app.websocket(
+    "/ws/chat"
+)
+async def chat(
+    ws: WebSocket
+):
+
+    user = ws_user(
+        ws
+    )
+
+    if (
+        not user
+        or user["is_banned"]
+    ):
+
+        await ws.close(
+            code=1008
+        )
+
+        return
+
+
+    await manager.connect(
+        user["id"],
+        ws
+    )
+
+
+    try:
+
+        # -------------------------------------------------
+        # PRESENCE
+        # -------------------------------------------------
+
+        await ws.send_json(
+            {
+                "type": "presence",
+                "online":
+                    manager.online_ids(),
+            }
+        )
+
+
+        # -------------------------------------------------
+        # PUBLIC HISTORY
+        # -------------------------------------------------
+
+        for message in public_history():
+
+            await ws.send_json(
+                {
+                    "type": "public",
+                    "message": message,
+                }
+            )
+
+
+        # -------------------------------------------------
+        # LOOP
+        # -------------------------------------------------
+
+        while True:
+
+            data = await ws.receive_json()
+
+
+            text = str(
+                data.get(
+                    "text",
+                    ""
+                )
+            ).strip()
+
+
+            attachment_url = data.get(
+                "attachment_url"
+            )
+
+            attachment_type = data.get(
+                "attachment_type"
+            )
+
+            attachment_name = data.get(
+                "attachment_name"
+            )
+
+
+            # -------------------------------------------------
+            # VALIDATION
+            # -------------------------------------------------
+
+            if len(text) > 2000:
+
+                continue
+
 
             if (
-                uploadedFile
-            ) {
+                not text
+                and not attachment_url
+            ):
 
-                const form =
-                    new FormData();
-
-                form.append(
-                    "file",
-                    uploadedFile
-                );
+                continue
 
 
-                const response =
-                    await fetch(
-                        "/api/chat/upload",
-                        {
-                            method:
-                                "POST",
-                            body:
-                                form
-                        }
-                    );
+            # -------------------------------------------------
+            # MUTE
+            # -------------------------------------------------
+
+            if (
+                user["muted_until"]
+                and user["muted_until"]
+                > now().isoformat()
+            ):
+
+                continue
 
 
-                const result =
-                    await response.json();
+            # -------------------------------------------------
+            # RECIPIENT
+            # -------------------------------------------------
+
+            target = data.get(
+                "recipient_id"
+            )
+
+            recipient = None
+
+
+            if target not in (
+                None,
+                "",
+                0,
+                "0",
+            ):
+
+                try:
+
+                    target = int(
+                        target
+                    )
+
+                except (
+                    ValueError,
+                    TypeError,
+                ):
+
+                    continue
+
+
+                recipient = get_user_by_id(
+                    target
+                )
 
 
                 if (
-                    !response.ok
-                ) {
+                    not recipient
+                    or recipient["is_banned"]
+                    or recipient["id"]
+                    == user["id"]
+                ):
 
-                    throw new Error(
-                        result.error
-                        || "Ошибка загрузки"
-                    );
-                }
-
-
-                attachment = result;
-            }
+                    continue
 
 
-            /* ---------------------------------------------
-               SOCKET
-               --------------------------------------------- */
+            # -------------------------------------------------
+            # ATTACHMENT VALIDATION
+            # -------------------------------------------------
 
-            socket.send(
-                JSON.stringify(
-                    {
-                        text,
+            if attachment_url:
 
-                        recipient_id:
-                            selectedUser.id,
+                if (
+                    not isinstance(
+                        attachment_url,
+                        str
+                    )
+                    or not attachment_url.startswith(
+                        "/static/uploads/chat/"
+                    )
+                ):
 
-                        attachment_url:
-                            attachment
-                                ? attachment.url
-                                : null,
+                    attachment_url = None
+                    attachment_type = None
+                    attachment_name = None
 
-                        attachment_type:
-                            attachment
-                                ? attachment.type
-                                : null,
 
-                        attachment_name:
-                            attachment
-                                ? attachment.name
-                                : null
-                    }
+                if attachment_type not in (
+                    "image",
+                    "video",
+                    None,
+                ):
+
+                    attachment_type = None
+
+
+            # -------------------------------------------------
+            # SAVE MESSAGE
+            # -------------------------------------------------
+
+            c = conn()
+
+            created = now().isoformat()
+
+            c.execute(
+                """
+                INSERT INTO messages(
+                    email,
+                    display_name,
+                    text,
+                    created_at,
+                    recipient_id,
+                    is_read,
+                    attachment_url,
+                    attachment_type,
+                    attachment_name
                 )
-            );
+                VALUES(?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    user["email"],
 
+                    (
+                        user["display_name"]
+                        or user["email"]
+                        .split("@")[0]
+                    ),
 
-            input.value = "";
+                    text,
 
-            resizeInput();
+                    created,
 
-            clearUpload();
+                    (
+                        recipient["id"]
+                        if recipient
+                        else None
+                    ),
 
+                    (
+                        0
+                        if recipient
+                        else 1
+                    ),
 
-        } catch (
-            error
-        ) {
+                    attachment_url,
 
-            showToast(
-                error.message
-                || "Не удалось отправить"
-            );
+                    attachment_type,
 
-        } finally {
-
-            send.disabled =
-                false;
-
-            input.focus();
-        }
-    }
-
-
-    /* =====================================================
-       FORM
-       ===================================================== */
-
-    composer.addEventListener(
-        "submit",
-        function (event) {
-
-            event.preventDefault();
-
-            sendMessage();
-
-        }
-    );
-
-
-    /* =====================================================
-       ENTER
-       ===================================================== */
-
-    input.addEventListener(
-        "keydown",
-        function (event) {
-
-            if (
-                event.key
-                === "Enter"
-                && !event.shiftKey
-            ) {
-
-                event.preventDefault();
-
-                sendMessage();
-            }
-
-        }
-    );
-
-
-    /* =====================================================
-       TEXTAREA SIZE
-       ===================================================== */
-
-    function resizeInput() {
-
-        input.style.height =
-            "auto";
-
-        input.style.height =
-            Math.min(
-                input.scrollHeight,
-                130
+                    (
+                        str(
+                            attachment_name
+                        )[:255]
+                        if attachment_name
+                        else None
+                    ),
+                )
             )
-            + "px";
-    }
+
+            c.commit()
 
 
-    input.addEventListener(
-        "input",
-        resizeInput
-    );
+            row = c.execute(
+                """
+                SELECT
+                    id,
+                    email,
+                    display_name,
+                    text,
+                    created_at,
+                    recipient_id,
+                    is_read,
+                    attachment_url,
+                    attachment_type,
+                    attachment_name
+                FROM messages
+                WHERE id=last_insert_rowid()
+                """
+            ).fetchone()
 
 
-    /* =====================================================
-       ATTACH
-       ===================================================== */
-
-    attach.addEventListener(
-        "click",
-        function () {
-
-            file.click();
-
-        }
-    );
+            c.close()
 
 
-    file.addEventListener(
-        "change",
-        function () {
+            payload = {
+                "type":
+                    "dm"
+                    if recipient
+                    else "public",
 
-            const selected =
-                file.files[0];
-
-
-            if (
-                !selected
-            ) {
-                return;
+                "message":
+                    dict(row),
             }
 
 
-            const isImage =
-                selected.type
-                    .startsWith(
-                        "image/"
-                    );
+            # -------------------------------------------------
+            # PRIVATE
+            # -------------------------------------------------
 
+            if recipient:
 
-            const isVideo =
-                selected.type
-                    .startsWith(
-                        "video/"
-                    );
-
-
-            if (
-                !isImage
-                && !isVideo
-            ) {
-
-                showToast(
-                    "Можно отправлять только фото и видео"
-                );
-
-                file.value = "";
-
-                return;
-            }
-
-
-            const max =
-                isImage
-                    ? 10 * 1024 * 1024
-                    : 50 * 1024 * 1024;
-
-
-            if (
-                selected.size
-                > max
-            ) {
-
-                showToast(
-                    isImage
-                        ? "Фото максимум 10 МБ"
-                        : "Видео максимум 50 МБ"
-                );
-
-                file.value = "";
-
-                return;
-            }
-
-
-            uploadedFile =
-                selected;
-
-
-            showUploadPreview(
-                selected
-            );
-
-        }
-    );
-
-
-    /* =====================================================
-       PREVIEW
-       ===================================================== */
-
-    function showUploadPreview(
-        selected
-    ) {
-
-        previewThumb.innerHTML =
-            "";
-
-
-        const url =
-            URL.createObjectURL(
-                selected
-            );
-
-
-        if (
-            selected.type
-                .startsWith(
-                    "image/"
+                await manager.send_user(
+                    user["id"],
+                    payload
                 )
-        ) {
 
-            const img =
-                document.createElement(
-                    "img"
-                );
-
-            img.src =
-                url;
-
-            previewThumb.appendChild(
-                img
-            );
-
-        } else {
-
-            const video =
-                document.createElement(
-                    "video"
-                );
-
-            video.src =
-                url;
-
-            video.muted =
-                true;
-
-            previewThumb.appendChild(
-                video
-            );
-        }
+                await manager.send_user(
+                    recipient["id"],
+                    payload
+                )
 
 
-        previewName.textContent =
-            selected.name;
+            # -------------------------------------------------
+            # PUBLIC
+            # -------------------------------------------------
+
+            else:
+
+                await manager.broadcast_public(
+                    payload
+                )
 
 
-        previewSize.textContent =
-            formatSize(
-                selected.size
-            );
+            # -------------------------------------------------
+            # PRESENCE
+            # -------------------------------------------------
 
+            await manager.broadcast_public(
+                {
+                    "type": "presence",
 
-        uploadPreview.classList.add(
-            "show"
-        );
-    }
-
-
-    /* =====================================================
-       CLEAR UPLOAD
-       ===================================================== */
-
-    function clearUpload() {
-
-        uploadedFile =
-            null;
-
-        file.value =
-            "";
-
-        previewThumb.innerHTML =
-            "";
-
-        previewName.textContent =
-            "";
-
-        previewSize.textContent =
-            "";
-
-        uploadPreview.classList.remove(
-            "show"
-        );
-    }
-
-
-    previewRemove.addEventListener(
-        "click",
-        clearUpload
-    );
-
-
-    /* =====================================================
-       SEARCH
-       ===================================================== */
-
-    search.addEventListener(
-        "input",
-        renderUsers
-    );
-
-
-    /* =====================================================
-       CONNECTION STATUS
-       ===================================================== */
-
-    function updateConnectionStatus() {
-
-        if (
-            !selectedUser
-        ) {
-            return;
-        }
-
-
-        if (
-            socket
-            && socket.readyState
-                === WebSocket.OPEN
-        ) {
-
-            updateHeadStatus();
-
-        }
-    }
-
-
-    /* =====================================================
-       INITIAL LOAD
-       ===================================================== */
-
-    loadUsers();
-
-    connectSocket();
-
-
-    /* =====================================================
-       UNREAD
-       ===================================================== */
-
-    async function loadUnread() {
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/chat/unread"
-                );
-
-
-            if (
-                !response.ok
-            ) {
-                return;
-            }
-
-
-            const data =
-                await response.json();
-
-
-            data.forEach(
-                function (item) {
-
-                    const user =
-                        findUserByEmail(
-                            item.email
-                        );
-
-                    if (!user) {
-                        return;
-                    }
-
-
-                    if (
-                        selectedUser
-                        && selectedUser.id
-                            === user.id
-                    ) {
-                        return;
-                    }
-
-
-                    const badge =
-                        document.querySelector(
-                            `[data-unread="${user.id}"]`
-                        );
-
-
-                    if (
-                        !badge
-                    ) {
-                        return;
-                    }
-
-
-                    badge.textContent =
-                        item.count;
-
-                    badge.classList.add(
-                        "show"
-                    );
-
+                    "online":
+                        manager.online_ids(),
                 }
-            );
-
-        } catch (_) {}
-    }
+            )
 
 
-    setTimeout(
-        loadUnread,
-        700
-    );
+    except WebSocketDisconnect:
+
+        manager.disconnect(
+            user["id"],
+            ws
+        )
 
 
-})();
-</script>
+    except Exception:
 
-{% endblock %}
+        manager.disconnect(
+            user["id"],
+            ws
+        )
