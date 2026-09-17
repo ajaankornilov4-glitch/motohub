@@ -137,8 +137,130 @@ def startup():
 
 
 # =========================================================
+# PASSWORD HELPERS
+# =========================================================
+
+def hash_password(password: str) -> str:
+    """
+    PBKDF2-SHA256 hash.
+
+    Формат:
+    pbkdf2$iterations$salt$hash
+    """
+
+    password = str(password)
+
+    iterations = 310000
+
+    salt = secrets.token_bytes(16)
+
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt,
+        iterations,
+    )
+
+    return (
+        f"pbkdf2${iterations}$"
+        f"{salt.hex()}$"
+        f"{digest.hex()}"
+    )
+
+
+def verify_password(
+    password: str,
+    stored_hash: str | None,
+) -> bool:
+
+    if not password:
+        return False
+
+    if not stored_hash:
+        return False
+
+    try:
+
+        parts = stored_hash.split("$")
+
+        if len(parts) != 4:
+            return False
+
+        algorithm = parts[0]
+        iterations = int(parts[1])
+        salt = bytes.fromhex(parts[2])
+        expected = bytes.fromhex(parts[3])
+
+        if algorithm != "pbkdf2":
+            return False
+
+        actual = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt,
+            iterations,
+        )
+
+        return secrets.compare_digest(
+            actual,
+            expected,
+        )
+
+    except Exception:
+        return False
+
+
+# =========================================================
 # AUTH HELPERS
 # =========================================================
+
+def clean_email(email: str):
+    return email.strip().lower()
+
+
+def valid_email(email: str) -> bool:
+
+    if not email:
+        return False
+
+    if "@" not in email:
+        return False
+
+    domain = email.split("@")[-1]
+
+    if "." not in domain:
+        return False
+
+    if len(email) > 255:
+        return False
+
+    return True
+
+
+def create_session_response(
+    email: str,
+    redirect_to: str = "/",
+):
+
+    response = RedirectResponse(
+        redirect_to,
+        303,
+    )
+
+    response.set_cookie(
+        "motohub_session",
+        serializer.dumps(
+            {
+                "email": email,
+            }
+        ),
+        httponly=True,
+        samesite="lax",
+        max_age=604800,
+    )
+
+    return response
+
 
 def session_email(request: Request):
 
@@ -209,30 +331,23 @@ def ws_user(ws: WebSocket):
         return None
 
 
-def clean_email(
-    email: str
-):
-
-    return email.strip().lower()
-
-
 def public_user(row):
 
     data = dict(row)
 
     data.pop(
         "muted_until",
-        None
+        None,
     )
 
     data.pop(
         "is_banned",
-        None
+        None,
     )
 
     data.pop(
         "password_hash",
-        None
+        None,
     )
 
     return data
@@ -244,10 +359,10 @@ def public_user(row):
 
 @app.get(
     "/",
-    response_class=HTMLResponse
+    response_class=HTMLResponse,
 )
 def home(
-    request: Request
+    request: Request,
 ):
 
     c = conn()
@@ -281,8 +396,639 @@ def home(
             "user": session_user(
                 request
             ),
+        },
+    )
+
+
+# =========================================================
+# REGISTER PAGE
+# =========================================================
+
+@app.get(
+    "/register",
+    response_class=HTMLResponse,
+)
+def register_page(
+    request: Request,
+):
+
+    user = session_user(
+        request
+    )
+
+    if user:
+        return RedirectResponse(
+            "/",
+            303,
+        )
+
+    return templates.TemplateResponse(
+        "register.html",
+        {
+            "request": request,
+            "user": None,
+        },
+    )
+
+
+# =========================================================
+# REGISTER REQUEST OTP
+# =========================================================
+
+@app.post(
+    "/auth/register/request"
+)
+def register_request(
+    email: str = Form(...),
+    password: str = Form(...),
+):
+
+    email = clean_email(
+        email
+    )
+
+    password = str(
+        password
+    )
+
+
+    # -----------------------------------------------------
+    # EMAIL
+    # -----------------------------------------------------
+
+    if not valid_email(email):
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Введите корректный email.",
+            },
+            status_code=400,
+        )
+
+
+    # -----------------------------------------------------
+    # PASSWORD
+    # -----------------------------------------------------
+
+    if len(password) < 8:
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Пароль должен содержать минимум 8 символов.",
+            },
+            status_code=400,
+        )
+
+
+    if not any(
+        char.isalpha()
+        for char in password
+    ):
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Пароль должен содержать хотя бы одну букву.",
+            },
+            status_code=400,
+        )
+
+
+    if not any(
+        char.isdigit()
+        for char in password
+    ):
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Пароль должен содержать хотя бы одну цифру.",
+            },
+            status_code=400,
+        )
+
+
+    # -----------------------------------------------------
+    # EXISTING USER
+    # -----------------------------------------------------
+
+    existing = get_user(
+        email
+    )
+
+    if existing:
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Аккаунт с таким email уже существует. Войдите в аккаунт.",
+            },
+            status_code=409,
+        )
+
+
+    # -----------------------------------------------------
+    # RATE LIMIT
+    # -----------------------------------------------------
+
+    c = conn()
+
+    recent = c.execute(
+        """
+        SELECT id
+        FROM otp
+        WHERE email=?
+          AND created_at>?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (
+            email,
+            (
+                now()
+                - timedelta(
+                    seconds=60
+                )
+            ).isoformat(),
+        ),
+    ).fetchone()
+
+    if recent:
+
+        c.close()
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Подождите 60 секунд перед повторной отправкой кода.",
+            },
+            status_code=429,
+        )
+
+
+    # -----------------------------------------------------
+    # OTP
+    # -----------------------------------------------------
+
+    code = (
+        f"{secrets.randbelow(1000000):06d}"
+    )
+
+    code_hash = hashlib.sha256(
+        code.encode()
+    ).hexdigest()
+
+    created = now()
+
+
+    c.execute(
+        """
+        INSERT INTO otp(
+            email,
+            code_hash,
+            expires_at,
+            created_at
+        )
+        VALUES(?,?,?,?)
+        """,
+        (
+            email,
+            code_hash,
+            (
+                created
+                + timedelta(
+                    minutes=10
+                )
+            ).isoformat(),
+            created.isoformat(),
+        ),
+    )
+
+
+    # -----------------------------------------------------
+    # SAVE PENDING REGISTRATION
+    # -----------------------------------------------------
+
+    password_hash = hash_password(
+        password
+    )
+
+    c.execute(
+        """
+        DELETE FROM pending_auth
+        WHERE email=?
+          AND purpose='register'
+        """,
+        (
+            email,
+        ),
+    )
+
+    c.execute(
+        """
+        INSERT INTO pending_auth(
+            email,
+            password_hash,
+            purpose,
+            expires_at,
+            created_at
+        )
+        VALUES(?,?,?,?,?)
+        """,
+        (
+            email,
+            password_hash,
+            "register",
+            (
+                created
+                + timedelta(
+                    minutes=10
+                )
+            ).isoformat(),
+            created.isoformat(),
+        ),
+    )
+
+
+    c.commit()
+    c.close()
+
+
+    # -----------------------------------------------------
+    # SEND EMAIL
+    # -----------------------------------------------------
+
+    try:
+
+        send_otp(
+            email,
+            code,
+        )
+
+    except Exception:
+
+        # Удаляем OTP и pending registration,
+        # если письмо не отправилось.
+
+        c = conn()
+
+        c.execute(
+            """
+            DELETE FROM otp
+            WHERE email=?
+              AND code_hash=?
+            """,
+            (
+                email,
+                code_hash,
+            ),
+        )
+
+        c.execute(
+            """
+            DELETE FROM pending_auth
+            WHERE email=?
+              AND purpose='register'
+            """,
+            (
+                email,
+            ),
+        )
+
+        c.commit()
+        c.close()
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Не удалось отправить код на email. Проверь настройки Gmail.",
+            },
+            status_code=500,
+        )
+
+
+    return {
+        "ok": True,
+        "email": email,
+    }
+
+
+# =========================================================
+# REGISTER VERIFY OTP
+# =========================================================
+
+@app.post(
+    "/auth/register/verify"
+)
+def register_verify(
+    email: str = Form(...),
+    code: str = Form(...),
+):
+
+    email = clean_email(
+        email
+    )
+
+    code = (
+        str(code)
+        .strip()
+        .replace(" ", "")
+    )
+
+
+    if not valid_email(email):
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Некорректный email.",
+            },
+            status_code=400,
+        )
+
+
+    if not code.isdigit() or len(code) != 6:
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Введите 6-значный код.",
+            },
+            status_code=400,
+        )
+
+
+    c = conn()
+
+
+    # -----------------------------------------------------
+    # PENDING REGISTRATION
+    # -----------------------------------------------------
+
+    pending = c.execute(
+        """
+        SELECT *
+        FROM pending_auth
+        WHERE email=?
+          AND purpose='register'
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (
+            email,
+        ),
+    ).fetchone()
+
+
+    if not pending:
+
+        c.close()
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Регистрация не найдена. Запросите новый код.",
+            },
+            status_code=404,
+        )
+
+
+    if (
+        datetime.fromisoformat(
+            pending["expires_at"]
+        )
+        < now()
+    ):
+
+        c.execute(
+            """
+            DELETE FROM pending_auth
+            WHERE id=?
+            """,
+            (
+                pending["id"],
+            ),
+        )
+
+        c.commit()
+        c.close()
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Срок регистрации истёк. Запросите новый код.",
+            },
+            status_code=400,
+        )
+
+
+    # -----------------------------------------------------
+    # OTP
+    # -----------------------------------------------------
+
+    otp = c.execute(
+        """
+        SELECT *
+        FROM otp
+        WHERE email=?
+          AND consumed=0
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (
+            email,
+        ),
+    ).fetchone()
+
+
+    if not otp:
+
+        c.close()
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Код не найден. Запросите новый код.",
+            },
+            status_code=400,
+        )
+
+
+    if (
+        datetime.fromisoformat(
+            otp["expires_at"]
+        )
+        < now()
+    ):
+
+        c.close()
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Код истёк. Запросите новый код.",
+            },
+            status_code=400,
+        )
+
+
+    if otp["attempts"] >= 5:
+
+        c.close()
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Слишком много попыток. Запросите новый код.",
+            },
+            status_code=429,
+        )
+
+
+    entered_hash = hashlib.sha256(
+        code.encode()
+    ).hexdigest()
+
+
+    if not secrets.compare_digest(
+        entered_hash,
+        otp["code_hash"],
+    ):
+
+        c.execute(
+            """
+            UPDATE otp
+            SET attempts=attempts+1
+            WHERE id=?
+            """,
+            (
+                otp["id"],
+            ),
+        )
+
+        c.commit()
+        c.close()
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Неверный код.",
+            },
+            status_code=400,
+        )
+
+
+    # -----------------------------------------------------
+    # CHECK AGAIN
+    # -----------------------------------------------------
+
+    existing = get_user(
+        email
+    )
+
+    if existing:
+
+        c.close()
+
+        return JSONResponse(
+            {
+                "detail":
+                    "Аккаунт с таким email уже существует.",
+            },
+            status_code=409,
+        )
+
+
+    # -----------------------------------------------------
+    # CREATE USER
+    # -----------------------------------------------------
+
+    c.execute(
+        """
+        INSERT INTO users(
+            email,
+            password_hash,
+            display_name,
+            role,
+            created_at
+        )
+        VALUES(?,?,?,?,?)
+        """,
+        (
+            email,
+            pending["password_hash"],
+            email.split("@")[0],
+            "USER",
+            now().isoformat(),
+        ),
+    )
+
+
+    # OTP consumed
+
+    c.execute(
+        """
+        UPDATE otp
+        SET consumed=1
+        WHERE id=?
+        """,
+        (
+            otp["id"],
+        ),
+    )
+
+
+    # Remove pending registration
+
+    c.execute(
+        """
+        DELETE FROM pending_auth
+        WHERE id=?
+        """,
+        (
+            pending["id"],
+        ),
+    )
+
+
+    c.commit()
+
+    user_id = c.execute(
+        "SELECT last_insert_rowid()"
+    ).fetchone()[0]
+
+    c.close()
+
+
+    # -----------------------------------------------------
+    # CREATE SESSION
+    # -----------------------------------------------------
+
+    response = JSONResponse(
+        {
+            "ok": True,
+            "redirect": "/",
+            "user_id": user_id,
         }
     )
+
+
+    response.set_cookie(
+        "motohub_session",
+        serializer.dumps(
+            {
+                "email": email,
+            }
+        ),
+        httponly=True,
+        samesite="lax",
+        max_age=604800,
+    )
+
+
+    return response
 
 
 # =========================================================
@@ -291,10 +1037,10 @@ def home(
 
 @app.get(
     "/login",
-    response_class=HTMLResponse
+    response_class=HTMLResponse,
 )
 def login(
-    request: Request
+    request: Request,
 ):
 
     return templates.TemplateResponse(
@@ -302,39 +1048,39 @@ def login(
         {
             "request": request,
             "error": None,
-        }
+            "user": session_user(
+                request
+            ),
+        },
     )
 
 
 # =========================================================
-# REQUEST OTP
+# OLD LOGIN OTP REQUEST
 # =========================================================
 
 @app.post(
     "/auth/request"
 )
 def request_code(
-    email: str = Form(...)
+    email: str = Form(...),
 ):
 
     email = clean_email(
         email
     )
 
-    if (
-        "@"
-        not in email
-        or "."
-        not in email.split("@")[-1]
-    ):
+
+    if not valid_email(email):
 
         return RedirectResponse(
             "/login?error=Неверный email",
-            303
+            303,
         )
 
 
     c = conn()
+
 
     recent = c.execute(
         """
@@ -351,7 +1097,7 @@ def request_code(
                     seconds=60
                 )
             ).isoformat(),
-        )
+        ),
     ).fetchone()
 
 
@@ -361,7 +1107,7 @@ def request_code(
 
         return RedirectResponse(
             "/login?error=Подождите 60 секунд",
-            303
+            303,
         )
 
 
@@ -398,7 +1144,7 @@ def request_code(
                 )
             ).isoformat(),
             created.isoformat(),
-        )
+        ),
     )
 
 
@@ -410,20 +1156,20 @@ def request_code(
 
         send_otp(
             email,
-            code
+            code,
         )
 
-    except Exception as exc:
+    except Exception:
 
         return RedirectResponse(
             "/login?error=Не удалось отправить код на email",
-            303
+            303,
         )
 
 
     return RedirectResponse(
         f"/verify?email={email}",
-        303
+        303,
     )
 
 
@@ -433,11 +1179,11 @@ def request_code(
 
 @app.get(
     "/verify",
-    response_class=HTMLResponse
+    response_class=HTMLResponse,
 )
 def verify_page(
     request: Request,
-    email: str
+    email: str,
 ):
 
     return templates.TemplateResponse(
@@ -446,12 +1192,15 @@ def verify_page(
             "request": request,
             "email": email,
             "error": None,
-        }
+            "user": session_user(
+                request
+            ),
+        },
     )
 
 
 # =========================================================
-# VERIFY OTP
+# OLD LOGIN VERIFY OTP
 # =========================================================
 
 @app.post(
@@ -459,14 +1208,16 @@ def verify_page(
 )
 def verify(
     email: str = Form(...),
-    code: str = Form(...)
+    code: str = Form(...),
 ):
 
     email = clean_email(
         email
     )
 
+
     c = conn()
+
 
     row = c.execute(
         """
@@ -479,7 +1230,7 @@ def verify(
         """,
         (
             email,
-        )
+        ),
     ).fetchone()
 
 
@@ -489,7 +1240,7 @@ def verify(
 
         return RedirectResponse(
             f"/verify?email={email}&error=Код не найден",
-            303
+            303,
         )
 
 
@@ -504,7 +1255,7 @@ def verify(
 
         return RedirectResponse(
             f"/verify?email={email}&error=Код истёк",
-            303
+            303,
         )
 
 
@@ -514,7 +1265,7 @@ def verify(
 
         return RedirectResponse(
             f"/verify?email={email}&error=Слишком много попыток",
-            303
+            303,
         )
 
 
@@ -523,7 +1274,10 @@ def verify(
     ).hexdigest()
 
 
-    if entered_hash != row["code_hash"]:
+    if not secrets.compare_digest(
+        entered_hash,
+        row["code_hash"],
+    ):
 
         c.execute(
             """
@@ -533,7 +1287,7 @@ def verify(
             """,
             (
                 row["id"],
-            )
+            ),
         )
 
         c.commit()
@@ -541,7 +1295,7 @@ def verify(
 
         return RedirectResponse(
             f"/verify?email={email}&error=Неверный код",
-            303
+            303,
         )
 
 
@@ -553,8 +1307,9 @@ def verify(
         """,
         (
             row["id"],
-        )
+        ),
     )
+
 
     c.commit()
     c.close()
@@ -565,26 +1320,10 @@ def verify(
     )
 
 
-    response = RedirectResponse(
+    return create_session_response(
+        email,
         "/",
-        303
     )
-
-
-    response.set_cookie(
-        "motohub_session",
-        serializer.dumps(
-            {
-                "email": email
-            }
-        ),
-        httponly=True,
-        samesite="lax",
-        max_age=604800,
-    )
-
-
-    return response
 
 
 # =========================================================
@@ -598,7 +1337,7 @@ def logout():
 
     response = RedirectResponse(
         "/",
-        303
+        303,
     )
 
     response.delete_cookie(
@@ -614,26 +1353,28 @@ def logout():
 
 @app.get(
     "/profile",
-    response_class=HTMLResponse
+    response_class=HTMLResponse,
 )
 def my_profile(
-    request: Request
+    request: Request,
 ):
 
     user = session_user(
         request
     )
 
+
     if not user:
 
         return RedirectResponse(
             "/login",
-            303
+            303,
         )
+
 
     return RedirectResponse(
         f"/profile/{user['id']}",
-        303
+        303,
     )
 
 
@@ -643,11 +1384,11 @@ def my_profile(
 
 @app.get(
     "/profile/{user_id}",
-    response_class=HTMLResponse
+    response_class=HTMLResponse,
 )
 def profile_page(
     request: Request,
-    user_id: int
+    user_id: int,
 ):
 
     viewer = session_user(
@@ -663,7 +1404,7 @@ def profile_page(
 
         return RedirectResponse(
             "/",
-            303
+            303,
         )
 
 
@@ -690,7 +1431,7 @@ def profile_page(
         """,
         (
             user_id,
-        )
+        ),
     ).fetchall()
 
 
@@ -729,7 +1470,7 @@ def profile_page(
         """,
         (
             user_id,
-        )
+        ),
     ).fetchone()
 
 
@@ -744,7 +1485,7 @@ def profile_page(
             "profile": profile,
             "achievements": achievements,
             "stats": stats,
-        }
+        },
     )
 
 
@@ -773,7 +1514,7 @@ async def profile_update(
 
         return RedirectResponse(
             "/login",
-            303
+            303,
         )
 
 
@@ -801,7 +1542,7 @@ async def profile_update(
 
             return RedirectResponse(
                 "/profile?error=Формат фото не поддерживается",
-                303
+                303,
             )
 
 
@@ -814,7 +1555,7 @@ async def profile_update(
 
             return RedirectResponse(
                 "/profile?error=Это не изображение",
-                303
+                303,
             )
 
 
@@ -825,7 +1566,7 @@ async def profile_update(
 
             return RedirectResponse(
                 "/profile?error=Фото больше 4 МБ",
-                303
+                303,
             )
 
 
@@ -874,7 +1615,7 @@ async def profile_update(
             avatar_url,
 
             user["id"],
-        )
+        ),
     )
 
 
@@ -884,7 +1625,7 @@ async def profile_update(
 
     return RedirectResponse(
         f"/profile/{user['id']}",
-        303
+        303,
     )
 
 
@@ -894,10 +1635,10 @@ async def profile_update(
 
 @app.get(
     "/chat",
-    response_class=HTMLResponse
+    response_class=HTMLResponse,
 )
 def chat_page(
-    request: Request
+    request: Request,
 ):
 
     user = session_user(
@@ -909,7 +1650,7 @@ def chat_page(
 
         return RedirectResponse(
             "/login",
-            303
+            303,
         )
 
 
@@ -918,7 +1659,7 @@ def chat_page(
         {
             "request": request,
             "user": user,
-        }
+        },
     )
 
 
@@ -930,7 +1671,7 @@ def chat_page(
     "/api/chat/users"
 )
 def chat_users(
-    request: Request
+    request: Request,
 ):
 
     user = session_user(
@@ -942,9 +1683,9 @@ def chat_users(
 
         return JSONResponse(
             {
-                "error": "auth"
+                "error": "auth",
             },
-            status_code=401
+            status_code=401,
         )
 
 
@@ -972,7 +1713,7 @@ def chat_users(
         """,
         (
             user["id"],
-        )
+        ),
     ).fetchall()
 
 
@@ -995,7 +1736,7 @@ def chat_users(
 )
 def chat_history(
     request: Request,
-    other_id: int
+    other_id: int,
 ):
 
     user = session_user(
@@ -1011,9 +1752,9 @@ def chat_history(
 
         return JSONResponse(
             {
-                "error": "auth"
+                "error": "auth",
             },
-            status_code=401
+            status_code=401,
         )
 
 
@@ -1021,9 +1762,9 @@ def chat_history(
 
         return JSONResponse(
             {
-                "error": "user_not_found"
+                "error": "user_not_found",
             },
-            status_code=404
+            status_code=404,
         )
 
 
@@ -1043,27 +1784,20 @@ def chat_history(
             attachment_url,
             attachment_type,
             attachment_name
-
         FROM messages
-
         WHERE recipient_id IS NOT NULL
-
         AND (
             (
                 email=?
                 AND recipient_id=?
             )
-
             OR
-
             (
                 email=?
                 AND recipient_id=?
             )
         )
-
         ORDER BY id DESC
-
         LIMIT 100
         """,
         (
@@ -1072,7 +1806,7 @@ def chat_history(
 
             other["email"],
             user["id"],
-        )
+        ),
     ).fetchall()
 
 
@@ -1094,7 +1828,7 @@ def chat_history(
 )
 def mark_read(
     request: Request,
-    other_id: int
+    other_id: int,
 ):
 
     user = session_user(
@@ -1110,9 +1844,9 @@ def mark_read(
 
         return JSONResponse(
             {
-                "error": "auth"
+                "error": "auth",
             },
-            status_code=401
+            status_code=401,
         )
 
 
@@ -1120,9 +1854,9 @@ def mark_read(
 
         return JSONResponse(
             {
-                "error": "user_not_found"
+                "error": "user_not_found",
             },
-            status_code=404
+            status_code=404,
         )
 
 
@@ -1140,7 +1874,7 @@ def mark_read(
         (
             other["email"],
             user["id"],
-        )
+        ),
     )
 
 
@@ -1149,7 +1883,7 @@ def mark_read(
 
 
     return {
-        "ok": True
+        "ok": True,
     }
 
 
@@ -1161,7 +1895,7 @@ def mark_read(
     "/api/chat/unread"
 )
 def unread(
-    request: Request
+    request: Request,
 ):
 
     user = session_user(
@@ -1173,9 +1907,9 @@ def unread(
 
         return JSONResponse(
             {
-                "error": "auth"
+                "error": "auth",
             },
-            status_code=401
+            status_code=401,
         )
 
 
@@ -1187,18 +1921,15 @@ def unread(
         SELECT
             email,
             COUNT(*) count
-
         FROM messages
-
         WHERE
             recipient_id=?
             AND is_read=0
-
         GROUP BY email
         """,
         (
             user["id"],
-        )
+        ),
     ).fetchall()
 
 
@@ -1214,8 +1945,8 @@ def unread(
 # =========================================================
 # CHAT FILE UPLOAD
 #
-# PHOTO  = 300 MB
-# VIDEO  = 500 MB
+# PHOTO = 300 MB
+# VIDEO = 500 MB
 # =========================================================
 
 @app.post(
@@ -1223,7 +1954,7 @@ def unread(
 )
 async def chat_upload(
     request: Request,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
 ):
 
     user = session_user(
@@ -1235,9 +1966,9 @@ async def chat_upload(
 
         return JSONResponse(
             {
-                "error": "auth"
+                "error": "auth",
             },
-            status_code=401
+            status_code=401,
         )
 
 
@@ -1245,9 +1976,10 @@ async def chat_upload(
 
         return JSONResponse(
             {
-                "error": "Аккаунт заблокирован"
+                "error":
+                    "Аккаунт заблокирован",
             },
-            status_code=403
+            status_code=403,
         )
 
 
@@ -1255,7 +1987,7 @@ async def chat_upload(
 
         raise HTTPException(
             status_code=400,
-            detail="Файл не выбран"
+            detail="Файл не выбран",
         )
 
 
@@ -1293,7 +2025,7 @@ async def chat_upload(
                 "Поддерживаются только "
                 "JPG, PNG, WEBP, GIF, "
                 "MP4, WEBM и MOV"
-            )
+            ),
         )
 
 
@@ -1322,7 +2054,7 @@ async def chat_upload(
 
         raise HTTPException(
             status_code=400,
-            detail="Расширение файла не поддерживается"
+            detail="Расширение файла не поддерживается",
         )
 
 
@@ -1344,13 +2076,12 @@ async def chat_upload(
 
     # -----------------------------------------------------
     # STREAM FILE TO DISK
-    #
-    # Не читаем 500 МБ целиком в RAM.
     # -----------------------------------------------------
 
     total_size = 0
 
     chunk_size = 1024 * 1024
+
 
     try:
 
@@ -1374,9 +2105,9 @@ async def chat_upload(
                 )
 
 
-                # -----------------------------------------
+                # -------------------------------------------------
                 # SIZE CHECK
-                # -----------------------------------------
+                # -------------------------------------------------
 
                 if total_size > max_size:
 
@@ -1384,9 +2115,11 @@ async def chat_upload(
 
 
                     try:
+
                         destination.unlink(
                             missing_ok=True
                         )
+
                     except Exception:
                         pass
 
@@ -1398,7 +2131,7 @@ async def chat_upload(
                             detail=(
                                 "Фото не должно "
                                 "быть больше 300 МБ"
-                            )
+                            ),
                         )
 
                     else:
@@ -1408,7 +2141,7 @@ async def chat_upload(
                             detail=(
                                 "Видео не должно "
                                 "быть больше 500 МБ"
-                            )
+                            ),
                         )
 
 
@@ -1422,7 +2155,7 @@ async def chat_upload(
         raise
 
 
-    except Exception as exc:
+    except Exception:
 
         try:
 
@@ -1436,14 +2169,16 @@ async def chat_upload(
 
         raise HTTPException(
             status_code=500,
-            detail="Ошибка сохранения файла"
+            detail="Ошибка сохранения файла",
         )
 
 
     finally:
 
         try:
+
             await file.close()
+
         except Exception:
             pass
 
@@ -1500,10 +2235,10 @@ def is_admin(
 
 @app.get(
     "/admin",
-    response_class=HTMLResponse
+    response_class=HTMLResponse,
 )
 def admin(
-    request: Request
+    request: Request,
 ):
 
     user = session_user(
@@ -1517,7 +2252,7 @@ def admin(
 
         return RedirectResponse(
             "/",
-            303
+            303,
         )
 
 
@@ -1562,7 +2297,7 @@ def admin(
             "users": users,
             "news": news,
             "events": events,
-        }
+        },
     )
 
 
@@ -1576,7 +2311,7 @@ def admin(
 def add_news(
     request: Request,
     title: str = Form(...),
-    body: str = Form(...)
+    body: str = Form(...),
 ):
 
     user = session_user(
@@ -1590,7 +2325,7 @@ def add_news(
 
         return RedirectResponse(
             "/",
-            303
+            303,
         )
 
 
@@ -1610,7 +2345,7 @@ def add_news(
             title.strip(),
             body.strip(),
             now().isoformat(),
-        )
+        ),
     )
 
 
@@ -1620,7 +2355,7 @@ def add_news(
 
     return RedirectResponse(
         "/admin",
-        303
+        303,
     )
 
 
@@ -1636,7 +2371,7 @@ def add_event(
     title: str = Form(...),
     description: str = Form(...),
     starts_at: str = Form(...),
-    location: str = Form("")
+    location: str = Form(""),
 ):
 
     user = session_user(
@@ -1650,7 +2385,7 @@ def add_event(
 
         return RedirectResponse(
             "/",
-            303
+            303,
         )
 
 
@@ -1674,7 +2409,7 @@ def add_event(
             starts_at,
             location.strip(),
             now().isoformat(),
-        )
+        ),
     )
 
 
@@ -1684,7 +2419,7 @@ def add_event(
 
     return RedirectResponse(
         "/admin",
-        303
+        303,
     )
 
 
@@ -1698,7 +2433,7 @@ def add_event(
 def role(
     request: Request,
     user_id: int = Form(...),
-    role: str = Form(...)
+    role: str = Form(...),
 ):
 
     actor = session_user(
@@ -1718,7 +2453,7 @@ def role(
 
         return RedirectResponse(
             "/admin",
-            303
+            303,
         )
 
 
@@ -1734,7 +2469,7 @@ def role(
         (
             role,
             user_id,
-        )
+        ),
     )
 
 
@@ -1744,7 +2479,7 @@ def role(
 
     return RedirectResponse(
         "/admin",
-        303
+        303,
     )
 
 
@@ -1758,7 +2493,7 @@ def role(
 def ban(
     request: Request,
     user_id: int = Form(...),
-    banned: int = Form(...)
+    banned: int = Form(...),
 ):
 
     actor = session_user(
@@ -1772,7 +2507,7 @@ def ban(
 
         return RedirectResponse(
             "/admin",
-            303
+            303,
         )
 
 
@@ -1788,7 +2523,7 @@ def ban(
         (
             1 if banned else 0,
             user_id,
-        )
+        ),
     )
 
 
@@ -1798,7 +2533,7 @@ def ban(
 
     return RedirectResponse(
         "/admin",
-        303
+        303,
     )
 
 
@@ -1815,7 +2550,7 @@ def admin_profile(
     display_name: str = Form(""),
     bio: str = Form(""),
     motorcycle: str = Form(""),
-    city: str = Form("")
+    city: str = Form(""),
 ):
 
     actor = session_user(
@@ -1829,7 +2564,7 @@ def admin_profile(
 
         return RedirectResponse(
             "/admin",
-            303
+            303,
         )
 
 
@@ -1857,7 +2592,7 @@ def admin_profile(
             city.strip()[:100],
 
             user_id,
-        )
+        ),
     )
 
 
@@ -1867,7 +2602,7 @@ def admin_profile(
 
     return RedirectResponse(
         "/admin",
-        303
+        303,
     )
 
 
@@ -1884,7 +2619,7 @@ def admin_achievement(
     event_id: str = Form(""),
     place: str = Form(""),
     award: str = Form(""),
-    note: str = Form("")
+    note: str = Form(""),
 ):
 
     actor = session_user(
@@ -1898,15 +2633,12 @@ def admin_achievement(
 
         return RedirectResponse(
             "/admin",
-            303
+            303,
         )
 
 
     # -----------------------------------------------------
     # EVENT ID
-    #
-    # Исправлено:
-    # HTML select может отправлять ""
     # -----------------------------------------------------
 
     event_id_num = None
@@ -1972,7 +2704,7 @@ def admin_achievement(
             note.strip()[:500],
 
             now().isoformat(),
-        )
+        ),
     )
 
 
@@ -1982,7 +2714,7 @@ def admin_achievement(
 
     return RedirectResponse(
         "/admin",
-        303
+        303,
     )
 
 
@@ -1995,7 +2727,7 @@ def admin_achievement(
 )
 def admin_achievement_delete(
     request: Request,
-    achievement_id: int = Form(...)
+    achievement_id: int = Form(...),
 ):
 
     actor = session_user(
@@ -2009,7 +2741,7 @@ def admin_achievement_delete(
 
         return RedirectResponse(
             "/admin",
-            303
+            303,
         )
 
 
@@ -2023,7 +2755,7 @@ def admin_achievement_delete(
         """,
         (
             achievement_id,
-        )
+        ),
     )
 
 
@@ -2033,7 +2765,7 @@ def admin_achievement_delete(
 
     return RedirectResponse(
         "/admin",
-        303
+        303,
     )
 
 
@@ -2051,14 +2783,14 @@ class ChatManager:
     async def connect(
         self,
         user_id,
-        ws
+        ws,
     ):
 
         await ws.accept()
 
         self.connections.setdefault(
             user_id,
-            set()
+            set(),
         ).add(
             ws
         )
@@ -2067,13 +2799,14 @@ class ChatManager:
     def disconnect(
         self,
         user_id,
-        ws
+        ws,
     ):
 
         if (
             user_id
             not in self.connections
         ):
+
             return
 
 
@@ -2096,7 +2829,7 @@ class ChatManager:
     async def send_user(
         self,
         user_id,
-        payload
+        payload,
     ):
 
         dead = []
@@ -2105,7 +2838,7 @@ class ChatManager:
         for ws in list(
             self.connections.get(
                 user_id,
-                set()
+                set(),
             )
         ):
 
@@ -2126,13 +2859,13 @@ class ChatManager:
 
             self.disconnect(
                 user_id,
-                ws
+                ws,
             )
 
 
     async def broadcast_public(
         self,
-        payload
+        payload,
     ):
 
         for user_id in list(
@@ -2141,7 +2874,7 @@ class ChatManager:
 
             await self.send_user(
                 user_id,
-                payload
+                payload,
             )
 
 
@@ -2177,13 +2910,9 @@ def public_history():
             attachment_url,
             attachment_type,
             attachment_name
-
         FROM messages
-
         WHERE recipient_id IS NULL
-
         ORDER BY id DESC
-
         LIMIT 60
         """
     ).fetchall()
@@ -2206,7 +2935,7 @@ def public_history():
     "/ws/chat"
 )
 async def chat(
-    ws: WebSocket
+    ws: WebSocket,
 ):
 
     user = ws_user(
@@ -2228,7 +2957,7 @@ async def chat(
 
     await manager.connect(
         user["id"],
-        ws
+        ws,
     )
 
 
@@ -2273,7 +3002,7 @@ async def chat(
             text = str(
                 data.get(
                     "text",
-                    ""
+                    "",
                 )
             ).strip()
 
@@ -2378,7 +3107,7 @@ async def chat(
                 if (
                     not isinstance(
                         attachment_url,
-                        str
+                        str,
                     )
                     or not attachment_url.startswith(
                         "/static/uploads/chat/"
@@ -2460,7 +3189,7 @@ async def chat(
                         if attachment_name
                         else None
                     ),
-                )
+                ),
             )
 
 
@@ -2480,9 +3209,7 @@ async def chat(
                     attachment_url,
                     attachment_type,
                     attachment_name
-
                 FROM messages
-
                 WHERE id=last_insert_rowid()
                 """
             ).fetchone()
@@ -2510,13 +3237,13 @@ async def chat(
 
                 await manager.send_user(
                     user["id"],
-                    payload
+                    payload,
                 )
 
 
                 await manager.send_user(
                     recipient["id"],
-                    payload
+                    payload,
                 )
 
 
@@ -2549,7 +3276,7 @@ async def chat(
 
         manager.disconnect(
             user["id"],
-            ws
+            ws,
         )
 
 
@@ -2557,5 +3284,5 @@ async def chat(
 
         manager.disconnect(
             user["id"],
-            ws
+            ws,
         )
