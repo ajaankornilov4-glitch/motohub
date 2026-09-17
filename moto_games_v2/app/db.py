@@ -26,6 +26,15 @@ def init_db():
     city TEXT,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS trusted_devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    device_name TEXT,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+);
     CREATE TABLE IF NOT EXISTS otp (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL,
