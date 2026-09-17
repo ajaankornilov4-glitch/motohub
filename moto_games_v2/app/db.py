@@ -12,19 +12,20 @@ def conn():
 def init_db():
     c = conn()
     c.executescript("""
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      display_name TEXT,
-      role TEXT NOT NULL DEFAULT 'USER',
-      is_banned INTEGER NOT NULL DEFAULT 0,
-      muted_until TEXT,
-      avatar_url TEXT,
-      bio TEXT,
-      motorcycle TEXT,
-      city TEXT,
-      created_at TEXT NOT NULL
-    );
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT,
+    display_name TEXT,
+    role TEXT NOT NULL DEFAULT 'USER',
+    is_banned INTEGER NOT NULL DEFAULT 0,
+    muted_until TEXT,
+    avatar_url TEXT,
+    bio TEXT,
+    motorcycle TEXT,
+    city TEXT,
+    created_at TEXT NOT NULL
+);
     CREATE TABLE IF NOT EXISTS otp (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL,
