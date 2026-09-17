@@ -14,7 +14,11 @@ from fastapi import (
     UploadFile,
     File,
 )
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import (
+    HTMLResponse,
+    RedirectResponse,
+    JSONResponse,
+)
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import URLSafeSerializer, BadSignature
@@ -30,27 +34,52 @@ from .db import (
 from .emailer import send_otp
 
 
+# =========================================================
+# CONFIG
+# =========================================================
+
 load_dotenv()
 
 BASE = Path(__file__).resolve().parent.parent
 
 UPLOADS = BASE / "static" / "uploads"
-UPLOADS.mkdir(parents=True, exist_ok=True)
+CHAT_UPLOADS = UPLOADS / "chat"
 
-app = FastAPI(title="MotoHub")
+UPLOADS.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+CHAT_UPLOADS.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+app = FastAPI(
+    title="MotoHub"
+)
 
 templates = Jinja2Templates(
-    directory=str(Path(__file__).parent / "templates")
+    directory=str(
+        Path(__file__).parent / "templates"
+    )
 )
 
 app.mount(
     "/static",
-    StaticFiles(directory=str(BASE / "static")),
+    StaticFiles(
+        directory=str(
+            BASE / "static"
+        )
+    ),
     name="static",
 )
 
 serializer = URLSafeSerializer(
-    os.getenv("SECRET_KEY", "dev-secret")
+    os.getenv(
+        "SECRET_KEY",
+        "dev-secret"
+    )
 )
 
 
@@ -64,7 +93,7 @@ def startup():
 
 
 # =========================================================
-# AUTH HELPERS
+# HELPERS
 # =========================================================
 
 def clean_email(email):
@@ -81,12 +110,21 @@ def hash_password(password):
         180000,
     )
 
-    return salt.hex() + ":" + digest.hex()
+    return (
+        salt.hex()
+        + ":"
+        + digest.hex()
+    )
 
 
-def verify_password(password, stored):
+def verify_password(
+    password,
+    stored,
+):
     try:
-        salt_hex, digest_hex = stored.split(":", 1)
+        salt_hex, digest_hex = (
+            stored.split(":", 1)
+        )
 
         digest = hashlib.pbkdf2_hmac(
             "sha256",
@@ -115,7 +153,10 @@ def device_hash(token):
 
 
 def device_name(request):
-    ua = request.headers.get("user-agent", "")
+    ua = request.headers.get(
+        "user-agent",
+        ""
+    )
 
     if "iPhone" in ua:
         return "iPhone"
@@ -138,8 +179,83 @@ def device_name(request):
     return "Браузер"
 
 
-def trusted_user(request, user):
-    token = request.cookies.get("motohub_device")
+# =========================================================
+# SESSION
+# =========================================================
+
+def session_email(request):
+    token = request.cookies.get(
+        "motohub_session"
+    )
+
+    if not token:
+        return None
+
+    try:
+        return serializer.loads(
+            token
+        ).get("email")
+
+    except BadSignature:
+        return None
+
+
+def session_user(request):
+    email = session_email(request)
+
+    if not email:
+        return None
+
+    return get_user(email)
+
+
+def ws_user(ws):
+    token = ws.cookies.get(
+        "motohub_session"
+    )
+
+    if not token:
+        return None
+
+    try:
+        email = serializer.loads(
+            token
+        ).get("email")
+
+        return get_user(email)
+
+    except BadSignature:
+        return None
+
+
+def make_session(
+    response,
+    email,
+):
+    response.set_cookie(
+        "motohub_session",
+        serializer.dumps(
+            {
+                "email": email
+            }
+        ),
+        httponly=True,
+        samesite="lax",
+        max_age=604800,
+    )
+
+
+# =========================================================
+# TRUSTED DEVICES
+# =========================================================
+
+def trusted_user(
+    request,
+    user,
+):
+    token = request.cookies.get(
+        "motohub_device"
+    )
 
     if not token or not user:
         return False
@@ -150,7 +266,8 @@ def trusted_user(request, user):
         """
         SELECT id
         FROM trusted_devices
-        WHERE user_id=? AND token_hash=?
+        WHERE user_id=?
+        AND token_hash=?
         """,
         (
             user["id"],
@@ -159,6 +276,7 @@ def trusted_user(request, user):
     ).fetchone()
 
     if row:
+
         c.execute(
             """
             UPDATE trusted_devices
@@ -178,7 +296,11 @@ def trusted_user(request, user):
     return bool(row)
 
 
-def trust_device(response, request, user):
+def trust_device(
+    response,
+    request,
+    user,
+):
     token = device_token()
 
     c = conn()
@@ -215,66 +337,15 @@ def trust_device(response, request, user):
     )
 
 
-def make_session(response, email):
-    response.set_cookie(
-        "motohub_session",
-        serializer.dumps({
-            "email": email
-        }),
-        httponly=True,
-        samesite="lax",
-        max_age=604800,
-    )
-
-
-def session_email(request):
-    token = request.cookies.get("motohub_session")
-
-    if not token:
-        return None
-
-    try:
-        return serializer.loads(token).get("email")
-
-    except BadSignature:
-        return None
-
-
-def session_user(request):
-    email = session_email(request)
-
-    return get_user(email) if email else None
-
-
-def ws_user(ws):
-    token = ws.cookies.get("motohub_session")
-
-    if not token:
-        return None
-
-    try:
-        email = serializer.loads(token).get("email")
-
-        return get_user(email)
-
-    except BadSignature:
-        return None
-
-
-def public_user(row):
-    d = dict(row)
-
-    d.pop("muted_until", None)
-    d.pop("is_banned", None)
-
-    return d
-
-
 # =========================================================
 # OTP
 # =========================================================
 
-def send_auth_code(email, password_hash, purpose):
+def send_auth_code(
+    email,
+    password_hash,
+    purpose,
+):
     c = conn()
 
     recent = c.execute(
@@ -287,7 +358,10 @@ def send_auth_code(email, password_hash, purpose):
         (
             email,
             (
-                now() - timedelta(seconds=60)
+                now()
+                - timedelta(
+                    seconds=60
+                )
             ).isoformat(),
         ),
     ).fetchone()
@@ -295,9 +369,14 @@ def send_auth_code(email, password_hash, purpose):
     if recent:
         c.close()
 
-        return False, "Подождите 60 секунд"
+        return (
+            False,
+            "Подождите 60 секунд",
+        )
 
-    code = f"{secrets.randbelow(1000000):06d}"
+    code = (
+        f"{secrets.randbelow(1000000):06d}"
+    )
 
     code_hash = hashlib.sha256(
         code.encode()
@@ -305,8 +384,11 @@ def send_auth_code(email, password_hash, purpose):
 
     created = now()
 
-    expires = created + timedelta(
-        minutes=10
+    expires = (
+        created
+        + timedelta(
+            minutes=10
+        )
     )
 
     c.execute(
@@ -350,12 +432,21 @@ def send_auth_code(email, password_hash, purpose):
     c.commit()
     c.close()
 
-    send_otp(email, code)
+    send_otp(
+        email,
+        code
+    )
 
-    return True, None
+    return (
+        True,
+        None
+    )
 
 
-def consume_code(email, code):
+def consume_code(
+    email,
+    code,
+):
     c = conn()
 
     row = c.execute(
@@ -373,7 +464,10 @@ def consume_code(email, code):
     if not row:
         c.close()
 
-        return None, "Код не найден"
+        return (
+            None,
+            "Код не найден"
+        )
 
     if datetime.fromisoformat(
         row["expires_at"]
@@ -381,12 +475,19 @@ def consume_code(email, code):
 
         c.close()
 
-        return None, "Код истёк"
+        return (
+            None,
+            "Код истёк"
+        )
 
     if row["attempts"] >= 5:
+
         c.close()
 
-        return None, "Слишком много попыток"
+        return (
+            None,
+            "Слишком много попыток"
+        )
 
     code_hash = hashlib.sha256(
         code.strip().encode()
@@ -406,7 +507,10 @@ def consume_code(email, code):
         c.commit()
         c.close()
 
-        return None, "Неверный код"
+        return (
+            None,
+            "Неверный код"
+        )
 
     c.execute(
         """
@@ -435,15 +539,47 @@ def consume_code(email, code):
     c.commit()
     c.close()
 
-    return pending, None
+    return (
+        pending,
+        None
+    )
+
+
+# =========================================================
+# PUBLIC USER
+# =========================================================
+
+def public_user(row):
+    data = dict(row)
+
+    data.pop(
+        "muted_until",
+        None
+    )
+
+    data.pop(
+        "is_banned",
+        None
+    )
+
+    data.pop(
+        "password_hash",
+        None
+    )
+
+    return data
 
 
 # =========================================================
 # HOME
 # =========================================================
 
-@app.get("/", response_class=HTMLResponse)
+@app.get(
+    "/",
+    response_class=HTMLResponse
+)
 def home(request: Request):
+
     c = conn()
 
     news = c.execute(
@@ -472,7 +608,8 @@ def home(request: Request):
             "request": request,
             "news": news,
             "events": events,
-            "user": session_user(request),
+            "user":
+                session_user(request),
         },
     )
 
@@ -481,13 +618,20 @@ def home(request: Request):
 # LOGIN
 # =========================================================
 
-@app.get("/login", response_class=HTMLResponse)
+@app.get(
+    "/login",
+    response_class=HTMLResponse
+)
 def login(request: Request):
+
     return templates.TemplateResponse(
         "login.html",
         {
             "request": request,
-            "error": request.query_params.get("error"),
+            "error":
+                request.query_params.get(
+                    "error"
+                ),
         },
     )
 
@@ -498,11 +642,14 @@ def auth_login(
     email: str = Form(...),
     password: str = Form(...),
 ):
+
     email = clean_email(email)
 
     if (
-        "@" not in email
-        or "." not in email.split("@")[-1]
+        "@"
+        not in email
+        or "."
+        not in email.split("@")[-1]
     ):
         return RedirectResponse(
             "/login?error=Неверный email",
@@ -510,6 +657,7 @@ def auth_login(
         )
 
     if len(password) < 6:
+
         return RedirectResponse(
             "/login?error=Пароль должен быть не короче 6 символов",
             303,
@@ -534,8 +682,10 @@ def auth_login(
         )
 
         if not ok:
+
             return RedirectResponse(
-                "/login?error=" + error,
+                "/login?error="
+                + error,
                 303,
             )
 
@@ -549,6 +699,7 @@ def auth_login(
     # -----------------------------------------------------
 
     if user["is_banned"]:
+
         return RedirectResponse(
             "/login?error=Аккаунт заблокирован",
             303,
@@ -571,8 +722,10 @@ def auth_login(
         )
 
         if not ok:
+
             return RedirectResponse(
-                "/login?error=" + error,
+                "/login?error="
+                + error,
                 303,
             )
 
@@ -589,6 +742,7 @@ def auth_login(
         password,
         user["password_hash"],
     ):
+
         return RedirectResponse(
             "/login?error=Неверный email или пароль",
             303,
@@ -598,7 +752,10 @@ def auth_login(
     # ДОВЕРЕННОЕ УСТРОЙСТВО
     # -----------------------------------------------------
 
-    if trusted_user(request, user):
+    if trusted_user(
+        request,
+        user
+    ):
 
         response = RedirectResponse(
             "/",
@@ -623,8 +780,10 @@ def auth_login(
     )
 
     if not ok:
+
         return RedirectResponse(
-            "/login?error=" + error,
+            "/login?error="
+            + error,
             303,
         )
 
@@ -638,19 +797,27 @@ def auth_login(
 # VERIFY
 # =========================================================
 
-@app.get("/verify", response_class=HTMLResponse)
+@app.get(
+    "/verify",
+    response_class=HTMLResponse
+)
 def verify_page(
     request: Request,
     email: str,
     mode: str = "",
 ):
+
     return templates.TemplateResponse(
         "verify.html",
         {
             "request": request,
-            "email": clean_email(email),
+            "email":
+                clean_email(email),
             "mode": mode,
-            "error": request.query_params.get("error"),
+            "error":
+                request.query_params.get(
+                    "error"
+                ),
         },
     )
 
@@ -661,6 +828,7 @@ def verify(
     email: str = Form(...),
     code: str = Form(...),
 ):
+
     email = clean_email(email)
 
     pending, error = consume_code(
@@ -669,6 +837,7 @@ def verify(
     )
 
     if error:
+
         return RedirectResponse(
             f"/verify?email={email}&error={error}",
             303,
@@ -683,7 +852,7 @@ def verify(
     user = get_user(email)
 
     # -----------------------------------------------------
-    # РЕГИСТРАЦИЯ / УСТАНОВКА ПАРОЛЯ
+    # РЕГИСТРАЦИЯ
     # -----------------------------------------------------
 
     if purpose in (
@@ -698,6 +867,7 @@ def verify(
         )
 
         if not password_hash:
+
             return RedirectResponse(
                 "/login?error=Сессия регистрации истекла",
                 303,
@@ -742,6 +912,7 @@ def verify(
     elif purpose == "new_device":
 
         if not user:
+
             return RedirectResponse(
                 "/login?error=Пользователь не найден",
                 303,
@@ -760,10 +931,6 @@ def verify(
         c.commit()
         c.close()
 
-    # -----------------------------------------------------
-    # ВХОД
-    # -----------------------------------------------------
-
     response = RedirectResponse(
         "/",
         303,
@@ -775,6 +942,7 @@ def verify(
     )
 
     if user:
+
         trust_device(
             response,
             request,
@@ -788,13 +956,20 @@ def verify(
 # FORGOT PASSWORD
 # =========================================================
 
-@app.get("/forgot", response_class=HTMLResponse)
+@app.get(
+    "/forgot",
+    response_class=HTMLResponse
+)
 def forgot_page(request: Request):
+
     return templates.TemplateResponse(
         "forgot.html",
         {
             "request": request,
-            "error": request.query_params.get("error"),
+            "error":
+                request.query_params.get(
+                    "error"
+                ),
         },
     )
 
@@ -804,13 +979,15 @@ def forgot(
     request: Request,
     email: str = Form(...),
 ):
+
     email = clean_email(email)
 
     user = get_user(email)
 
     if not user:
+
         return RedirectResponse(
-            "/forgot?error=Пользователь не найден",
+            "/forgot?error=Аккаунт с таким email не найден",
             303,
         )
 
@@ -821,8 +998,10 @@ def forgot(
     )
 
     if not ok:
+
         return RedirectResponse(
-            "/forgot?error=" + error,
+            "/forgot?error="
+            + error,
             303,
         )
 
@@ -832,17 +1011,25 @@ def forgot(
     )
 
 
-@app.get("/reset", response_class=HTMLResponse)
+@app.get(
+    "/reset",
+    response_class=HTMLResponse
+)
 def reset_page(
     request: Request,
     email: str,
 ):
+
     return templates.TemplateResponse(
         "reset.html",
         {
             "request": request,
-            "email": clean_email(email),
-            "error": request.query_params.get("error"),
+            "email":
+                clean_email(email),
+            "error":
+                request.query_params.get(
+                    "error"
+                ),
         },
     )
 
@@ -854,9 +1041,11 @@ def reset_password(
     code: str = Form(...),
     password: str = Form(...),
 ):
+
     email = clean_email(email)
 
     if len(password) < 6:
+
         return RedirectResponse(
             f"/reset?email={email}&error=Пароль должен быть не короче 6 символов",
             303,
@@ -868,6 +1057,7 @@ def reset_password(
     )
 
     if error:
+
         return RedirectResponse(
             f"/reset?email={email}&error={error}",
             303,
@@ -875,8 +1065,10 @@ def reset_password(
 
     if (
         not pending
-        or pending["purpose"] != "reset_password"
+        or pending["purpose"]
+        != "reset_password"
     ):
+
         return RedirectResponse(
             f"/reset?email={email}&error=Код сброса не найден",
             303,
@@ -885,6 +1077,7 @@ def reset_password(
     user = get_user(email)
 
     if not user:
+
         return RedirectResponse(
             "/login?error=Пользователь не найден",
             303,
@@ -908,7 +1101,9 @@ def reset_password(
         ),
     )
 
-    # Старые устройства отключаем
+    # После восстановления отключаем
+    # старые доверенные устройства.
+
     c.execute(
         """
         DELETE FROM trusted_devices
@@ -955,6 +1150,7 @@ def reset_password(
 
 @app.post("/logout")
 def logout():
+
     response = RedirectResponse(
         "/",
         303,
@@ -968,10 +1164,16 @@ def logout():
 
 
 @app.post("/logout-all")
-def logout_all(request: Request):
-    user = session_user(request)
+def logout_all(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
 
     if user:
+
         c = conn()
 
         c.execute(
@@ -1005,11 +1207,20 @@ def logout_all(request: Request):
 # PROFILE
 # =========================================================
 
-@app.get("/profile", response_class=HTMLResponse)
-def my_profile(request: Request):
-    user = session_user(request)
+@app.get(
+    "/profile",
+    response_class=HTMLResponse
+)
+def my_profile(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
 
     if not user:
+
         return RedirectResponse(
             "/login",
             303,
@@ -1021,18 +1232,25 @@ def my_profile(request: Request):
     )
 
 
-@app.get("/profile/{user_id}", response_class=HTMLResponse)
+@app.get(
+    "/profile/{user_id}",
+    response_class=HTMLResponse
+)
 def profile_page(
     request: Request,
     user_id: int,
 ):
-    viewer = session_user(request)
+
+    viewer = session_user(
+        request
+    )
 
     profile = get_user_by_id(
         user_id
     )
 
     if not profile:
+
         return RedirectResponse(
             "/",
             303,
@@ -1047,10 +1265,14 @@ def profile_page(
             e.title AS event_title,
             e.starts_at,
             e.location
+
         FROM achievements a
+
         LEFT JOIN events e
-            ON e.id=a.event_id
+        ON e.id=a.event_id
+
         WHERE a.user_id=?
+
         ORDER BY
             COALESCE(
                 e.starts_at,
@@ -1091,6 +1313,7 @@ def profile_page(
             ) thirds
 
         FROM achievements
+
         WHERE user_id=?
         """,
         (user_id,),
@@ -1104,7 +1327,8 @@ def profile_page(
             "request": request,
             "user": viewer,
             "profile": profile,
-            "achievements": achievements,
+            "achievements":
+                achievements,
             "stats": stats,
         },
     )
@@ -1119,15 +1343,21 @@ async def profile_update(
     city: str = Form(""),
     avatar: UploadFile | None = File(None),
 ):
-    user = session_user(request)
+
+    user = session_user(
+        request
+    )
 
     if not user:
+
         return RedirectResponse(
             "/login",
             303,
         )
 
-    avatar_url = user["avatar_url"]
+    avatar_url = user[
+        "avatar_url"
+    ]
 
     if avatar and avatar.filename:
 
@@ -1141,6 +1371,7 @@ async def profile_update(
             ".png",
             ".webp",
         }:
+
             return RedirectResponse(
                 "/profile?error=Формат фото не поддерживается",
                 303,
@@ -1148,8 +1379,11 @@ async def profile_update(
 
         if (
             avatar.content_type
-            and not avatar.content_type.startswith("image/")
+            and not avatar.content_type.startswith(
+                "image/"
+            )
         ):
+
             return RedirectResponse(
                 "/profile?error=Это не изображение",
                 303,
@@ -1158,6 +1392,7 @@ async def profile_update(
         data = await avatar.read()
 
         if len(data) > 4 * 1024 * 1024:
+
             return RedirectResponse(
                 "/profile?error=Фото больше 4 МБ",
                 303,
@@ -1180,20 +1415,28 @@ async def profile_update(
     c.execute(
         """
         UPDATE users
+
         SET
             display_name=?,
             bio=?,
             motorcycle=?,
             city=?,
             avatar_url=?
+
         WHERE id=?
         """,
         (
-            display_name.strip()[:80] or None,
+            display_name.strip()[:80]
+            or None,
+
             bio.strip()[:500],
+
             motorcycle.strip()[:100],
+
             city.strip()[:100],
+
             avatar_url,
+
             user["id"],
         ),
     )
@@ -1208,14 +1451,23 @@ async def profile_update(
 
 
 # =========================================================
-# CHAT
+# CHAT PAGE
 # =========================================================
 
-@app.get("/chat", response_class=HTMLResponse)
-def chat_page(request: Request):
-    user = session_user(request)
+@app.get(
+    "/chat",
+    response_class=HTMLResponse
+)
+def chat_page(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
 
     if not user:
+
         return RedirectResponse(
             "/login",
             303,
@@ -1230,13 +1482,25 @@ def chat_page(request: Request):
     )
 
 
+# =========================================================
+# CHAT USERS
+# =========================================================
+
 @app.get("/api/chat/users")
-def chat_users(request: Request):
-    user = session_user(request)
+def chat_users(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
 
     if not user:
+
         return JSONResponse(
-            {"error": "auth"},
+            {
+                "error": "auth"
+            },
             401,
         )
 
@@ -1253,8 +1517,11 @@ def chat_users(request: Request):
             avatar_url,
             motorcycle,
             city
+
         FROM users
+
         WHERE id!=?
+
         ORDER BY
             COALESCE(
                 display_name,
@@ -1273,26 +1540,42 @@ def chat_users(request: Request):
     ]
 
 
-@app.get("/api/chat/messages/{other_id}")
+# =========================================================
+# CHAT HISTORY
+# =========================================================
+
+@app.get(
+    "/api/chat/messages/{other_id}"
+)
 def chat_history(
     request: Request,
     other_id: int,
 ):
-    user = session_user(request)
+
+    user = session_user(
+        request
+    )
 
     other = get_user_by_id(
         other_id
     )
 
     if not user:
+
         return JSONResponse(
-            {"error": "auth"},
+            {
+                "error": "auth"
+            },
             401,
         )
 
     if not other:
+
         return JSONResponse(
-            {"error": "user_not_found"},
+            {
+                "error":
+                    "user_not_found"
+            },
             404,
         )
 
@@ -1307,7 +1590,11 @@ def chat_history(
             text,
             created_at,
             recipient_id,
-            is_read
+            is_read,
+            attachment_url,
+            attachment_type,
+            attachment_name
+
         FROM messages
 
         WHERE recipient_id IS NOT NULL
@@ -1327,6 +1614,7 @@ def chat_history(
         )
 
         ORDER BY id DESC
+
         LIMIT 100
         """,
         (
@@ -1345,26 +1633,82 @@ def chat_history(
     ]
 
 
-@app.post("/api/chat/read/{other_id}")
+# =========================================================
+# PUBLIC CHAT HISTORY
+# =========================================================
+
+def public_history():
+
+    c = conn()
+
+    rows = c.execute(
+        """
+        SELECT
+            id,
+            email,
+            display_name,
+            text,
+            created_at,
+            recipient_id,
+            is_read,
+            attachment_url,
+            attachment_type,
+            attachment_name
+
+        FROM messages
+
+        WHERE recipient_id IS NULL
+
+        ORDER BY id DESC
+
+        LIMIT 60
+        """
+    ).fetchall()
+
+    c.close()
+
+    return [
+        dict(row)
+        for row in reversed(rows)
+    ]
+
+
+# =========================================================
+# MARK READ
+# =========================================================
+
+@app.post(
+    "/api/chat/read/{other_id}"
+)
 def mark_read(
     request: Request,
     other_id: int,
 ):
-    user = session_user(request)
+
+    user = session_user(
+        request
+    )
 
     other = get_user_by_id(
         other_id
     )
 
     if not user:
+
         return JSONResponse(
-            {"error": "auth"},
+            {
+                "error": "auth"
+            },
             401,
         )
 
     if not other:
+
         return JSONResponse(
-            {"error": "user_not_found"},
+            {
+                "error":
+                    "user_not_found"
+            },
             404,
         )
 
@@ -1374,6 +1718,7 @@ def mark_read(
         """
         UPDATE messages
         SET is_read=1
+
         WHERE email=?
         AND recipient_id=?
         """,
@@ -1391,13 +1736,27 @@ def mark_read(
     }
 
 
-@app.get("/api/chat/unread")
-def unread(request: Request):
-    user = session_user(request)
+# =========================================================
+# UNREAD
+# =========================================================
+
+@app.get(
+    "/api/chat/unread"
+)
+def unread(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
 
     if not user:
+
         return JSONResponse(
-            {"error": "auth"},
+            {
+                "error": "auth"
+            },
             401,
         )
 
@@ -1428,10 +1787,163 @@ def unread(request: Request):
 
 
 # =========================================================
+# CHAT FILE UPLOAD
+# =========================================================
+
+@app.post(
+    "/api/chat/upload"
+)
+async def chat_upload(
+    request: Request,
+    file: UploadFile = File(...),
+):
+
+    user = session_user(
+        request
+    )
+
+    if not user:
+
+        return JSONResponse(
+            {
+                "error": "auth"
+            },
+            401,
+        )
+
+    if user["is_banned"]:
+
+        return JSONResponse(
+            {
+                "error":
+                    "Аккаунт заблокирован"
+            },
+            403,
+        )
+
+    if not file.filename:
+
+        return JSONResponse(
+            {
+                "error":
+                    "Файл не выбран"
+            },
+            400,
+        )
+
+    content_type = (
+        file.content_type
+        or ""
+    ).lower()
+
+    # -----------------------------------------------------
+    # ФОТО
+    # -----------------------------------------------------
+
+    image_types = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+    }
+
+    # -----------------------------------------------------
+    # ВИДЕО
+    # -----------------------------------------------------
+
+    video_types = {
+        "video/mp4": ".mp4",
+        "video/webm": ".webm",
+        "video/quicktime": ".mov",
+    }
+
+    if content_type in image_types:
+
+        attachment_type = "image"
+
+        max_size = (
+            10 * 1024 * 1024
+        )
+
+        extension = image_types[
+            content_type
+        ]
+
+    elif content_type in video_types:
+
+        attachment_type = "video"
+
+        max_size = (
+            50 * 1024 * 1024
+        )
+
+        extension = video_types[
+            content_type
+        ]
+
+    else:
+
+        return JSONResponse(
+            {
+                "error":
+                    "Можно отправлять только фотографии JPG, PNG, WEBP, GIF или видео MP4, WEBM, MOV"
+            },
+            400,
+        )
+
+    data = await file.read()
+
+    if len(data) > max_size:
+
+        if attachment_type == "image":
+            message = (
+                "Фото не должно быть больше 10 МБ"
+            )
+        else:
+            message = (
+                "Видео не должно быть больше 50 МБ"
+            )
+
+        return JSONResponse(
+            {
+                "error": message
+            },
+            400,
+        )
+
+    filename = (
+        secrets.token_hex(16)
+        + extension
+    )
+
+    destination = (
+        CHAT_UPLOADS / filename
+    )
+
+    destination.write_bytes(
+        data
+    )
+
+    return {
+        "ok": True,
+
+        "url":
+            f"/static/uploads/chat/{filename}",
+
+        "type":
+            attachment_type,
+
+        "name":
+            file.filename,
+    }
+
+
+# =========================================================
 # ADMIN
 # =========================================================
 
 def is_staff(user):
+
     return (
         user
         and user["role"]
@@ -1443,17 +1955,28 @@ def is_staff(user):
 
 
 def is_admin(user):
+
     return (
         user
-        and user["role"] == "ADMIN"
+        and user["role"]
+        == "ADMIN"
     )
 
 
-@app.get("/admin", response_class=HTMLResponse)
-def admin(request: Request):
-    user = session_user(request)
+@app.get(
+    "/admin",
+    response_class=HTMLResponse
+)
+def admin(
+    request: Request
+):
+
+    user = session_user(
+        request
+    )
 
     if not is_staff(user):
+
         return RedirectResponse(
             "/",
             303,
@@ -1499,16 +2022,25 @@ def admin(request: Request):
     )
 
 
-@app.get("/api/admin/users/search")
+@app.get(
+    "/api/admin/users/search"
+)
 def admin_users_search(
     request: Request,
     q: str = "",
 ):
-    actor = session_user(request)
+
+    actor = session_user(
+        request
+    )
 
     if not is_staff(actor):
+
         return JSONResponse(
-            {"error": "forbidden"},
+            {
+                "error":
+                    "forbidden"
+            },
             403,
         )
 
@@ -1584,15 +2116,23 @@ def admin_users_search(
     ]
 
 
+# =========================================================
+# ADMIN NEWS
+# =========================================================
+
 @app.post("/admin/news")
 def add_news(
     request: Request,
     title: str = Form(...),
     body: str = Form(...),
 ):
-    user = session_user(request)
+
+    user = session_user(
+        request
+    )
 
     if not is_staff(user):
+
         return RedirectResponse(
             "/",
             303,
@@ -1625,6 +2165,10 @@ def add_news(
     )
 
 
+# =========================================================
+# ADMIN EVENTS
+# =========================================================
+
 @app.post("/admin/events")
 def add_event(
     request: Request,
@@ -1633,9 +2177,13 @@ def add_event(
     starts_at: str = Form(...),
     location: str = Form(""),
 ):
-    user = session_user(request)
+
+    user = session_user(
+        request
+    )
 
     if not is_staff(user):
+
         return RedirectResponse(
             "/",
             303,
@@ -1672,13 +2220,20 @@ def add_event(
     )
 
 
+# =========================================================
+# ADMIN ROLE
+# =========================================================
+
 @app.post("/admin/role")
 def role(
     request: Request,
     user_id: int = Form(...),
     role: str = Form(...),
 ):
-    actor = session_user(request)
+
+    actor = session_user(
+        request
+    )
 
     if (
         not is_admin(actor)
@@ -1688,6 +2243,7 @@ def role(
             "ADMIN",
         )
     ):
+
         return RedirectResponse(
             "/admin",
             303,
@@ -1716,15 +2272,23 @@ def role(
     )
 
 
+# =========================================================
+# ADMIN BAN
+# =========================================================
+
 @app.post("/admin/ban")
 def ban(
     request: Request,
     user_id: int = Form(...),
     banned: int = Form(...),
 ):
-    actor = session_user(request)
+
+    actor = session_user(
+        request
+    )
 
     if not is_admin(actor):
+
         return RedirectResponse(
             "/admin",
             303,
@@ -1753,6 +2317,10 @@ def ban(
     )
 
 
+# =========================================================
+# ADMIN PROFILE
+# =========================================================
+
 @app.post("/admin/profile")
 def admin_profile(
     request: Request,
@@ -1762,9 +2330,13 @@ def admin_profile(
     motorcycle: str = Form(""),
     city: str = Form(""),
 ):
-    actor = session_user(request)
+
+    actor = session_user(
+        request
+    )
 
     if not is_staff(actor):
+
         return RedirectResponse(
             "/admin",
             303,
@@ -1808,19 +2380,25 @@ def admin_profile(
 
 
 # =========================================================
-# PUNISHMENT
+# ADMIN PUNISHMENT
 # =========================================================
 
-@app.post("/admin/punishment")
+@app.post(
+    "/admin/punishment"
+)
 def admin_punishment(
     request: Request,
     user_id: int = Form(...),
     reason: str = Form(""),
     duration_minutes: str = Form(""),
 ):
-    actor = session_user(request)
+
+    actor = session_user(
+        request
+    )
 
     if not is_staff(actor):
+
         return RedirectResponse(
             "/admin",
             303,
@@ -1829,6 +2407,7 @@ def admin_punishment(
     reason = reason.strip()[:500]
 
     if not reason:
+
         return RedirectResponse(
             "/admin?error=Укажите причину наказания",
             303,
@@ -1840,6 +2419,7 @@ def admin_punishment(
     if duration_minutes.strip():
 
         try:
+
             minutes = int(
                 duration_minutes
             )
@@ -1909,10 +2489,12 @@ def admin_punishment(
 
 
 # =========================================================
-# ACHIEVEMENTS
+# ADMIN ACHIEVEMENT
 # =========================================================
 
-@app.post("/admin/achievement")
+@app.post(
+    "/admin/achievement"
+)
 def admin_achievement(
     request: Request,
     user_id: int = Form(...),
@@ -1921,9 +2503,13 @@ def admin_achievement(
     award: str = Form(""),
     note: str = Form(""),
 ):
-    actor = session_user(request)
+
+    actor = session_user(
+        request
+    )
 
     if not is_staff(actor):
+
         return RedirectResponse(
             "/admin",
             303,
@@ -1934,7 +2520,9 @@ def admin_achievement(
     if place.strip():
 
         try:
-            place_num = int(place)
+            place_num = int(
+                place
+            )
 
         except ValueError:
             place_num = None
@@ -1984,14 +2572,20 @@ def admin_achievement(
     )
 
 
-@app.post("/admin/achievement/delete")
+@app.post(
+    "/admin/achievement/delete"
+)
 def admin_achievement_delete(
     request: Request,
     achievement_id: int = Form(...),
 ):
-    actor = session_user(request)
+
+    actor = session_user(
+        request
+    )
 
     if not is_staff(actor):
+
         return RedirectResponse(
             "/admin",
             303,
@@ -2030,6 +2624,7 @@ class ChatManager:
         user_id,
         ws,
     ):
+
         await ws.accept()
 
         self.connections.setdefault(
@@ -2042,20 +2637,27 @@ class ChatManager:
         user_id,
         ws,
     ):
+
         if user_id in self.connections:
 
-            self.connections[user_id].discard(
-                ws
-            )
+            self.connections[
+                user_id
+            ].discard(ws)
 
-            if not self.connections[user_id]:
-                del self.connections[user_id]
+            if not self.connections[
+                user_id
+            ]:
+
+                del self.connections[
+                    user_id
+                ]
 
     async def send_user(
         self,
         user_id,
         payload,
     ):
+
         dead = []
 
         for ws in list(
@@ -2066,14 +2668,17 @@ class ChatManager:
         ):
 
             try:
+
                 await ws.send_json(
                     payload
                 )
 
             except Exception:
+
                 dead.append(ws)
 
         for ws in dead:
+
             self.disconnect(
                 user_id,
                 ws,
@@ -2083,15 +2688,18 @@ class ChatManager:
         self,
         payload,
     ):
+
         for uid in list(
             self.connections
         ):
+
             await self.send_user(
                 uid,
                 payload,
             )
 
     def online_ids(self):
+
         return list(
             self.connections
         )
@@ -2100,43 +2708,14 @@ class ChatManager:
 manager = ChatManager()
 
 
-def public_history():
-    c = conn()
-
-    rows = c.execute(
-        """
-        SELECT
-            id,
-            email,
-            display_name,
-            text,
-            created_at,
-            recipient_id
-
-        FROM messages
-
-        WHERE recipient_id IS NULL
-
-        ORDER BY id DESC
-
-        LIMIT 60
-        """
-    ).fetchall()
-
-    c.close()
-
-    return [
-        dict(row)
-        for row in reversed(rows)
-    ]
-
-
 # =========================================================
 # WEBSOCKET CHAT
 # =========================================================
 
 @app.websocket("/ws/chat")
-async def chat(ws: WebSocket):
+async def chat(
+    ws: WebSocket
+):
 
     user = ws_user(ws)
 
@@ -2144,6 +2723,7 @@ async def chat(ws: WebSocket):
         not user
         or user["is_banned"]
     ):
+
         await ws.close(
             code=1008
         )
@@ -2157,12 +2737,21 @@ async def chat(ws: WebSocket):
 
     try:
 
+        # -------------------------------------------------
+        # PRESENCE
+        # -------------------------------------------------
+
         await ws.send_json(
             {
                 "type": "presence",
-                "online": manager.online_ids(),
+                "online":
+                    manager.online_ids(),
             }
         )
+
+        # -------------------------------------------------
+        # PUBLIC HISTORY
+        # -------------------------------------------------
 
         for message in public_history():
 
@@ -2173,6 +2762,10 @@ async def chat(ws: WebSocket):
                 }
             )
 
+        # -------------------------------------------------
+        # LOOP
+        # -------------------------------------------------
+
         while True:
 
             data = await ws.receive_json()
@@ -2180,22 +2773,51 @@ async def chat(ws: WebSocket):
             text = str(
                 data.get(
                     "text",
-                    "",
+                    ""
                 )
             ).strip()
 
+            attachment_url = data.get(
+                "attachment_url"
+            )
+
+            attachment_type = data.get(
+                "attachment_type"
+            )
+
+            attachment_name = data.get(
+                "attachment_name"
+            )
+
+            # ---------------------------------------------
+            # Нельзя отправлять пустое сообщение
+            # ---------------------------------------------
+
             if (
                 not text
-                or len(text) > 2000
+                and not attachment_url
             ):
                 continue
 
-            # Проверяем временный мут
-            muted_until = user["muted_until"]
+            # ---------------------------------------------
+            # Лимит текста
+            # ---------------------------------------------
+
+            if len(text) > 2000:
+                continue
+
+            # ---------------------------------------------
+            # MUTE
+            # ---------------------------------------------
+
+            muted_until = (
+                user["muted_until"]
+            )
 
             if muted_until:
 
                 try:
+
                     if datetime.fromisoformat(
                         muted_until
                     ) > now():
@@ -2204,6 +2826,10 @@ async def chat(ws: WebSocket):
 
                 except Exception:
                     pass
+
+            # ---------------------------------------------
+            # RECIPIENT
+            # ---------------------------------------------
 
             target = data.get(
                 "recipient_id"
@@ -2218,6 +2844,7 @@ async def chat(ws: WebSocket):
             ):
 
                 try:
+
                     target = int(
                         target
                     )
@@ -2226,6 +2853,7 @@ async def chat(ws: WebSocket):
                     ValueError,
                     TypeError,
                 ):
+
                     continue
 
                 recipient = get_user_by_id(
@@ -2238,11 +2866,18 @@ async def chat(ws: WebSocket):
                     or recipient["id"]
                     == user["id"]
                 ):
+
                     continue
+
+            # ---------------------------------------------
+            # INSERT
+            # ---------------------------------------------
 
             c = conn()
 
-            created = now().isoformat()
+            created = (
+                now().isoformat()
+            )
 
             c.execute(
                 """
@@ -2252,9 +2887,12 @@ async def chat(ws: WebSocket):
                     text,
                     created_at,
                     recipient_id,
-                    is_read
+                    is_read,
+                    attachment_url,
+                    attachment_type,
+                    attachment_name
                 )
-                VALUES(?,?,?,?,?,?)
+                VALUES(?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     user["email"],
@@ -2277,6 +2915,12 @@ async def chat(ws: WebSocket):
                         if recipient
                         else 1
                     ),
+
+                    attachment_url,
+
+                    attachment_type,
+
+                    attachment_name,
                 ),
             )
 
@@ -2291,15 +2935,23 @@ async def chat(ws: WebSocket):
                     text,
                     created_at,
                     recipient_id,
-                    is_read
+                    is_read,
+                    attachment_url,
+                    attachment_type,
+                    attachment_name
 
                 FROM messages
 
-                WHERE id=last_insert_rowid()
+                WHERE id=
+                    last_insert_rowid()
                 """
             ).fetchone()
 
             c.close()
+
+            # ---------------------------------------------
+            # PAYLOAD
+            # ---------------------------------------------
 
             payload = {
                 "type":
@@ -2310,6 +2962,10 @@ async def chat(ws: WebSocket):
                 "message":
                     dict(row),
             }
+
+            # ---------------------------------------------
+            # PRIVATE MESSAGE
+            # ---------------------------------------------
 
             if recipient:
 
@@ -2323,15 +2979,24 @@ async def chat(ws: WebSocket):
                     payload,
                 )
 
+            # ---------------------------------------------
+            # PUBLIC MESSAGE
+            # ---------------------------------------------
+
             else:
 
                 await manager.broadcast_public(
                     payload
                 )
 
+            # ---------------------------------------------
+            # PRESENCE
+            # ---------------------------------------------
+
             await manager.broadcast_public(
                 {
                     "type": "presence",
+
                     "online":
                         manager.online_ids(),
                 }
