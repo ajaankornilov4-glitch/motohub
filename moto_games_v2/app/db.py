@@ -4,37 +4,42 @@ from datetime import datetime
 
 DB = Path(__file__).resolve().parent.parent / "motohub.db"
 
+
 def conn():
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
     return c
 
+
 def init_db():
     c = conn()
+
     c.executescript("""
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT,
-    display_name TEXT,
-    role TEXT NOT NULL DEFAULT 'USER',
-    is_banned INTEGER NOT NULL DEFAULT 0,
-    muted_until TEXT,
-    avatar_url TEXT,
-    bio TEXT,
-    motorcycle TEXT,
-    city TEXT,
-    created_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS trusted_devices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    token_hash TEXT NOT NULL UNIQUE,
-    device_name TEXT,
-    created_at TEXT NOT NULL,
-    last_used_at TEXT NOT NULL,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-);
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT,
+      display_name TEXT,
+      role TEXT NOT NULL DEFAULT 'USER',
+      is_banned INTEGER NOT NULL DEFAULT 0,
+      muted_until TEXT,
+      avatar_url TEXT,
+      bio TEXT,
+      motorcycle TEXT,
+      city TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS trusted_devices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      device_name TEXT,
+      created_at TEXT NOT NULL,
+      last_used_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
     CREATE TABLE IF NOT EXISTS otp (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL,
@@ -44,12 +49,14 @@ CREATE TABLE IF NOT EXISTS trusted_devices (
       consumed INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
+
     CREATE TABLE IF NOT EXISTS news (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       body TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
@@ -58,6 +65,7 @@ CREATE TABLE IF NOT EXISTS trusted_devices (
       location TEXT,
       created_at TEXT NOT NULL
     );
+
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL,
@@ -67,6 +75,7 @@ CREATE TABLE IF NOT EXISTS trusted_devices (
       recipient_id INTEGER,
       is_read INTEGER NOT NULL DEFAULT 0
     );
+
     CREATE TABLE IF NOT EXISTS achievements (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -78,9 +87,30 @@ CREATE TABLE IF NOT EXISTS trusted_devices (
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(event_id) REFERENCES events(id)
     );
+
+    CREATE TABLE IF NOT EXISTS punishments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      admin_id INTEGER,
+      reason TEXT NOT NULL,
+      duration_minutes INTEGER,
+      created_at TEXT NOT NULL,
+      expires_at TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
     """)
-    # Safe upgrades for older MotoHub databases.
-    cols = {r[1] for r in c.execute("PRAGMA table_info(users)").fetchall()}
+
+    # Безопасное обновление старой базы MotoHub
+    cols = {
+        r[1]
+        for r in c.execute("PRAGMA table_info(users)").fetchall()
+    }
+
+    if "password_hash" not in cols:
+        c.execute(
+            "ALTER TABLE users ADD COLUMN password_hash TEXT"
+        )
+
     for col, ddl in [
         ("avatar_url", "ALTER TABLE users ADD COLUMN avatar_url TEXT"),
         ("bio", "ALTER TABLE users ADD COLUMN bio TEXT"),
@@ -89,29 +119,75 @@ CREATE TABLE IF NOT EXISTS trusted_devices (
     ]:
         if col not in cols:
             c.execute(ddl)
-    cols = {r[1] for r in c.execute("PRAGMA table_info(messages)").fetchall()}
+
+    cols = {
+        r[1]
+        for r in c.execute("PRAGMA table_info(messages)").fetchall()
+    }
+
     if "recipient_id" not in cols:
-        c.execute("ALTER TABLE messages ADD COLUMN recipient_id INTEGER")
+        c.execute(
+            "ALTER TABLE messages ADD COLUMN recipient_id INTEGER"
+        )
+
     if "is_read" not in cols:
-        c.execute("ALTER TABLE messages ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0")
+        c.execute(
+            "ALTER TABLE messages ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0"
+        )
+
     c.commit()
     c.close()
+
 
 def now():
     return datetime.utcnow()
 
+
 def get_user(email):
-    c=conn(); row=c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone(); c.close()
+    c = conn()
+    row = c.execute(
+        "SELECT * FROM users WHERE email=?",
+        (email,)
+    ).fetchone()
+    c.close()
     return row
+
 
 def get_user_by_id(user_id):
-    c=conn(); row=c.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone(); c.close()
+    c = conn()
+    row = c.execute(
+        "SELECT * FROM users WHERE id=?",
+        (user_id,)
+    ).fetchone()
+    c.close()
     return row
 
-def create_user(email):
-    c=conn()
-    c.execute("INSERT OR IGNORE INTO users(email,created_at) VALUES(?,?)",(email,now().isoformat()))
+
+def create_user(email, password_hash=None):
+    c = conn()
+
+    c.execute(
+        """
+        INSERT OR IGNORE INTO users(
+            email,
+            password_hash,
+            created_at
+        )
+        VALUES(?,?,?)
+        """,
+        (
+            email,
+            password_hash,
+            now().isoformat()
+        )
+    )
+
     c.commit()
-    row=c.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
+
+    row = c.execute(
+        "SELECT * FROM users WHERE email=?",
+        (email,)
+    ).fetchone()
+
     c.close()
     return row
