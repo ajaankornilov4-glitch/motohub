@@ -1,2 +1,61 @@
-{% extends "base.html" %}{% block title %}Вход — MotoHub{% endblock %}{% block content %}
-<div class="form"><div class="tag">EMAIL AUTH</div><h1>Вход в MotoHub</h1><p class="muted">Получим код подтверждения на email.</p>{% if request.query_params.get('error') %}<div class="error">{{request.query_params.get('error')}}</div>{% endif %}<form method="post" action="/auth/request"><input class="input" type="email" name="email" placeholder="you@example.com" required><button class="btn">Получить код</button></form></div>{% endblock %}
+```html
+{% extends "base.html" %}
+
+{% block title %}Вход — MotoHub{% endblock %}
+
+{% block content %}
+
+<div class="form">
+
+    <div class="tag">MOTOHUB AUTH</div>
+
+    <h1>Вход в MotoHub</h1>
+
+    <p class="muted">
+        Введите email и пароль.
+        На новом устройстве потребуется код из Gmail.
+    </p>
+
+    {% if error %}
+        <div class="error">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="post" action="/auth/login">
+
+        <input
+            class="input"
+            type="email"
+            name="email"
+            placeholder="Email"
+            autocomplete="email"
+            required
+        >
+
+        <input
+            class="input"
+            type="password"
+            name="password"
+            placeholder="Пароль"
+            autocomplete="current-password"
+            minlength="6"
+            required
+        >
+
+        <button class="btn" type="submit">
+            Войти
+        </button>
+
+    </form>
+
+    <p class="muted" style="margin-top:16px">
+        <a href="/forgot">
+            Забыли пароль?
+        </a>
+    </p>
+
+</div>
+
+{% endblock %}
+```
