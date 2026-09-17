@@ -1,46 +1,802 @@
-{% extends "base.html" %}{% block title %}Админка — MotoHub{% endblock %}{% block content %}
-<div class="wrap"><div class="tag">CONTROL CENTER</div><h1>Админ-панель</h1>
-<div class="admin-grid">
-<div class="card"><h2>Добавить новость</h2><form method="post" action="/admin/news"><input class="input" name="title" placeholder="Заголовок" required><textarea class="input" name="body" placeholder="Текст" required></textarea><button class="btn">Опубликовать</button></form></div>
-<div class="card"><h2>Добавить событие</h2><form method="post" action="/admin/events"><input class="input" name="title" placeholder="Название" required><textarea class="input" name="description" placeholder="Описание" required></textarea><input class="input" name="starts_at" placeholder="2026-10-01 19:00" required><input class="input" name="location" placeholder="Место"><button class="btn">Добавить</button></form></div>
-</div>
-<h2 style="margin-top:40px">Профили участников</h2>
-<div class="grid">{% for u in users %}<div class="card">
-<div style="display:flex;gap:14px;align-items:center">
-{% if u.avatar_url %}<img class="avatar" src="{{u.avatar_url}}">{% else %}<div class="avatar" style="display:grid;place-items:center">🏍️</div>{% endif %}
-<div><b>{{u.display_name or u.email.split('@')[0]}}</b><div class="small">{{u.email}}</div><div class="small">ID {{u.id}} · {{u.role}}{% if u.is_banned %} · BANNED{% endif %}</div></div>
-</div>
-<form method="post" action="/admin/profile" style="margin-top:14px"><input type="hidden" name="user_id" value="{{u.id}}">
-<input class="input" name="display_name" value="{{u.display_name or ''}}" placeholder="Никнейм">
-<input class="input" name="motorcycle" value="{{u.motorcycle or ''}}" placeholder="Мотоцикл">
-<input class="input" name="city" value="{{u.city or ''}}" placeholder="Город">
-<textarea class="input" name="bio" placeholder="О себе">{{u.bio or ''}}</textarea>
-<button class="btn">Сохранить профиль</button></form>
-<div style="margin-top:12px"><a class="btn dark" href="/profile/{{u.id}}" target="_blank">Открыть профиль</a></div>
-{% if user.role=="ADMIN" %}<form method="post" action="/admin/role" style="margin-top:12px"><input type="hidden" name="user_id" value="{{u.id}}"><select class="input" name="role"><option {% if u.role=="USER" %}selected{% endif %}>USER</option><option {% if u.role=="MODERATOR" %}selected{% endif %}>MODERATOR</option><option {% if u.role=="ADMIN" %}selected{% endif %}>ADMIN</option></select><button class="btn">Изменить роль</button></form>
-<form method="post" action="/admin/ban" style="margin-top:8px"><input type="hidden" name="user_id" value="{{u.id}}"><input type="hidden" name="banned" value="{{0 if u.is_banned else 1}}"><button class="btn dark">{{"Разбанить" if u.is_banned else "Забанить"}}</button></form>{% endif %}
-</div>{% endfor %}</div>
+{% extends "base.html" %}
 
-<h2 style="margin-top:40px">Добавить результат участника</h2>
-<div class="card">
-<form method="post" action="/admin/achievement">
-<select class="input" name="user_id" required><option value="">Участник</option>{% for u in users %}<option value="{{u.id}}">{{u.display_name or u.email.split('@')[0]}} — {{u.email}}</option>{% endfor %}</select>
-<select class="input" name="event_id"><option value="">Мероприятие</option>{% for e in events %}<option value="{{e.id}}">{{e.title}} — {{e.starts_at}}</option>{% endfor %}</select>
-<input class="input" name="place" type="number" min="1" max="999" placeholder="Место, например 1">
-<input class="input" name="award" maxlength="120" placeholder="Награда / кубок / номинация">
-<textarea class="input" name="note" maxlength="500" placeholder="Комментарий"></textarea>
-<button class="btn">Записать результат</button></form>
+{% block title %}Админ-панель — MotoHub{% endblock %}
+
+{% block content %}
+
+<div class="admin-page">
+
+    <div class="admin-head">
+        <div>
+            <div class="tag">MOTOHUB CONTROL</div>
+            <h1>Админ-панель</h1>
+            <p class="muted">
+                Управление участниками, контентом и мероприятиями.
+            </p>
+        </div>
+
+        <a class="btn secondary" href="/">
+            ← На сайт
+        </a>
+    </div>
+
+    {% if request.query_params.get("error") %}
+        <div class="error">
+            {{ request.query_params.get("error") }}
+        </div>
+    {% endif %}
+
+
+    <!-- ================= USERS ================= -->
+
+    <section class="admin-section">
+
+        <div class="section-head">
+            <div>
+                <div class="tag">USERS</div>
+                <h2>Участники</h2>
+            </div>
+        </div>
+
+        <div class="admin-search">
+            <input
+                id="userSearch"
+                class="input"
+                type="search"
+                placeholder="Поиск по email, имени, городу или мотоциклу..."
+                autocomplete="off"
+            >
+        </div>
+
+        <div id="userSearchResults"></div>
+
+        <div id="allUsers" class="admin-users">
+
+            {% for u in users %}
+
+            <div
+                class="admin-user"
+                data-search="{{ (u.email ~ ' ' ~ (u.display_name or '') ~ ' ' ~ (u.city or '') ~ ' ' ~ (u.motorcycle or ''))|lower }}"
+            >
+
+                <div class="admin-user-main">
+
+                    <div class="admin-avatar">
+                        {% if u.avatar_url %}
+                            <img src="{{ u.avatar_url }}" alt="">
+                        {% else %}
+                            {{ (u.display_name or u.email)[0]|upper }}
+                        {% endif %}
+                    </div>
+
+                    <div class="admin-user-info">
+
+                        <strong>
+                            {{ u.display_name or "Без имени" }}
+                        </strong>
+
+                        <span>
+                            {{ u.email }}
+                        </span>
+
+                        {% if u.city %}
+                            <span>{{ u.city }}</span>
+                        {% endif %}
+
+                        {% if u.motorcycle %}
+                            <span>{{ u.motorcycle }}</span>
+                        {% endif %}
+
+                        <div class="admin-badges">
+
+                            <span class="badge">
+                                {{ u.role }}
+                            </span>
+
+                            {% if u.is_banned %}
+                                <span class="badge danger">
+                                    BANNED
+                                </span>
+                            {% endif %}
+
+                            {% if u.muted_until %}
+                                <span class="badge warning">
+                                    MUTED
+                                </span>
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="admin-actions">
+
+                    <a
+                        class="btn secondary small"
+                        href="/profile/{{ u.id }}"
+                    >
+                        Профиль
+                    </a>
+
+
+                    {% if user.role == "ADMIN" %}
+
+                    <form method="post" action="/admin/role">
+
+                        <input
+                            type="hidden"
+                            name="user_id"
+                            value="{{ u.id }}"
+                        >
+
+                        <select
+                            class="input small-input"
+                            name="role"
+                            onchange="this.form.submit()"
+                        >
+                            <option
+                                value="USER"
+                                {% if u.role == "USER" %}selected{% endif %}
+                            >
+                                USER
+                            </option>
+
+                            <option
+                                value="MODERATOR"
+                                {% if u.role == "MODERATOR" %}selected{% endif %}
+                            >
+                                MODERATOR
+                            </option>
+
+                            <option
+                                value="ADMIN"
+                                {% if u.role == "ADMIN" %}selected{% endif %}
+                            >
+                                ADMIN
+                            </option>
+
+                        </select>
+
+                    </form>
+
+                    {% endif %}
+
+
+                    {% if user.role == "ADMIN" and u.id != user.id %}
+
+                    <form method="post" action="/admin/ban">
+
+                        <input
+                            type="hidden"
+                            name="user_id"
+                            value="{{ u.id }}"
+                        >
+
+                        {% if u.is_banned %}
+
+                            <input
+                                type="hidden"
+                                name="banned"
+                                value="0"
+                            >
+
+                            <button class="btn small" type="submit">
+                                Разбанить
+                            </button>
+
+                        {% else %}
+
+                            <input
+                                type="hidden"
+                                name="banned"
+                                value="1"
+                            >
+
+                            <button
+                                class="btn danger-btn small"
+                                type="submit"
+                            >
+                                Заблокировать
+                            </button>
+
+                        {% endif %}
+
+                    </form>
+
+                    {% endif %}
+
+                </div>
+
+
+                <!-- EDIT PROFILE -->
+
+                <details class="admin-details">
+
+                    <summary>
+                        Редактировать профиль
+                    </summary>
+
+                    <form
+                        method="post"
+                        action="/admin/profile"
+                        class="admin-form"
+                    >
+
+                        <input
+                            type="hidden"
+                            name="user_id"
+                            value="{{ u.id }}"
+                        >
+
+                        <input
+                            class="input"
+                            name="display_name"
+                            value="{{ u.display_name or '' }}"
+                            placeholder="Имя"
+                        >
+
+                        <input
+                            class="input"
+                            name="city"
+                            value="{{ u.city or '' }}"
+                            placeholder="Город"
+                        >
+
+                        <input
+                            class="input"
+                            name="motorcycle"
+                            value="{{ u.motorcycle or '' }}"
+                            placeholder="Мотоцикл"
+                        >
+
+                        <textarea
+                            class="input"
+                            name="bio"
+                            rows="4"
+                            placeholder="О себе"
+                        >{{ u.bio or '' }}</textarea>
+
+                        <button class="btn" type="submit">
+                            Сохранить профиль
+                        </button>
+
+                    </form>
+
+                </details>
+
+
+                <!-- PUNISHMENT -->
+
+                <details class="admin-details">
+
+                    <summary>
+                        Наказать участника
+                    </summary>
+
+                    <form
+                        method="post"
+                        action="/admin/punishment"
+                        class="admin-form"
+                    >
+
+                        <input
+                            type="hidden"
+                            name="user_id"
+                            value="{{ u.id }}"
+                        >
+
+                        <textarea
+                            class="input"
+                            name="reason"
+                            rows="3"
+                            placeholder="Причина наказания..."
+                            required
+                        ></textarea>
+
+                        <select
+                            class="input"
+                            name="duration_minutes"
+                        >
+                            <option value="">
+                                Без срока
+                            </option>
+
+                            <option value="5">
+                                5 минут
+                            </option>
+
+                            <option value="15">
+                                15 минут
+                            </option>
+
+                            <option value="30">
+                                30 минут
+                            </option>
+
+                            <option value="60">
+                                1 час
+                            </option>
+
+                            <option value="180">
+                                3 часа
+                            </option>
+
+                            <option value="1440">
+                                1 день
+                            </option>
+
+                            <option value="10080">
+                                7 дней
+                            </option>
+
+                        </select>
+
+                        <button
+                            class="btn danger-btn"
+                            type="submit"
+                        >
+                            Выдать наказание
+                        </button>
+
+                    </form>
+
+                </details>
+
+            </div>
+
+            {% else %}
+
+            <div class="empty">
+                Участников пока нет.
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= NEWS ================= -->
+
+    <section class="admin-section">
+
+        <div class="section-head">
+
+            <div>
+                <div class="tag">NEWS</div>
+                <h2>Новости</h2>
+            </div>
+
+        </div>
+
+        <form
+            method="post"
+            action="/admin/news"
+            class="admin-form"
+        >
+
+            <input
+                class="input"
+                name="title"
+                placeholder="Заголовок новости"
+                required
+            >
+
+            <textarea
+                class="input"
+                name="body"
+                rows="6"
+                placeholder="Текст новости..."
+                required
+            ></textarea>
+
+            <button class="btn" type="submit">
+                Опубликовать новость
+            </button>
+
+        </form>
+
+
+        <div class="admin-list">
+
+            {% for n in news %}
+
+            <article class="admin-card">
+
+                <div class="tag">
+                    {{ n.created_at }}
+                </div>
+
+                <h3>
+                    {{ n.title }}
+                </h3>
+
+                <p>
+                    {{ n.body }}
+                </p>
+
+            </article>
+
+            {% else %}
+
+            <div class="empty">
+                Новостей пока нет.
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= EVENTS ================= -->
+
+    <section class="admin-section">
+
+        <div class="section-head">
+
+            <div>
+                <div class="tag">EVENTS</div>
+                <h2>Мероприятия</h2>
+            </div>
+
+        </div>
+
+        <form
+            method="post"
+            action="/admin/events"
+            class="admin-form"
+        >
+
+            <input
+                class="input"
+                name="title"
+                placeholder="Название мероприятия"
+                required
+            >
+
+            <textarea
+                class="input"
+                name="description"
+                rows="4"
+                placeholder="Описание..."
+                required
+            ></textarea>
+
+            <input
+                class="input"
+                type="datetime-local"
+                name="starts_at"
+                required
+            >
+
+            <input
+                class="input"
+                name="location"
+                placeholder="Место проведения"
+            >
+
+            <button class="btn" type="submit">
+                Создать мероприятие
+            </button>
+
+        </form>
+
+
+        <div class="admin-list">
+
+            {% for e in events %}
+
+            <article class="admin-card">
+
+                <div class="tag">
+                    {{ e.starts_at }}
+                </div>
+
+                <h3>
+                    {{ e.title }}
+                </h3>
+
+                <p>
+                    {{ e.description }}
+                </p>
+
+                {% if e.location %}
+                    <div class="muted">
+                        📍 {{ e.location }}
+                    </div>
+                {% endif %}
+
+            </article>
+
+            {% else %}
+
+            <div class="empty">
+                Мероприятий пока нет.
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= ACHIEVEMENTS ================= -->
+
+    <section class="admin-section">
+
+        <div class="section-head">
+
+            <div>
+                <div class="tag">ACHIEVEMENTS</div>
+                <h2>Достижения</h2>
+            </div>
+
+        </div>
+
+        <form
+            method="post"
+            action="/admin/achievement"
+            class="admin-form"
+        >
+
+            <select
+                class="input"
+                name="user_id"
+                required
+            >
+
+                <option value="">
+                    Выберите участника
+                </option>
+
+                {% for u in users %}
+
+                <option value="{{ u.id }}">
+                    {{ u.display_name or u.email }}
+                    — {{ u.email }}
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+
+            <select
+                class="input"
+                name="event_id"
+            >
+
+                <option value="">
+                    Мероприятие — не выбрано
+                </option>
+
+                {% for e in events %}
+
+                <option value="{{ e.id }}">
+                    {{ e.title }}
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+
+            <input
+                class="input"
+                name="place"
+                type="number"
+                min="1"
+                max="999"
+                placeholder="Место: 1, 2, 3..."
+            >
+
+            <input
+                class="input"
+                name="award"
+                placeholder="Награда / достижение"
+            >
+
+            <textarea
+                class="input"
+                name="note"
+                rows="4"
+                placeholder="Комментарий..."
+            ></textarea>
+
+            <button class="btn" type="submit">
+                Добавить достижение
+            </button>
+
+        </form>
+
+    </section>
+
 </div>
 
-<h2 style="margin-top:40px">Все результаты</h2>
-<div class="grid">
-{% for u in users %}
-<div class="card"><b>{{u.display_name or u.email.split('@')[0]}}</b>
-{% set rows = namespace(items=[]) %}
-{% for a in [] %}{% endfor %}
-<p class="muted">Результаты можно просматривать и редактировать через профиль участника.</p>
-<a class="btn dark" href="/profile/{{u.id}}" target="_blank">Профиль и история</a>
-</div>
-{% endfor %}
-</div>
-</div>{% endblock %}
+
+<script>
+
+const searchInput =
+    document.getElementById("userSearch");
+
+const allUsers =
+    document.getElementById("allUsers");
+
+const searchResults =
+    document.getElementById("userSearchResults");
+
+
+let searchTimer = null;
+
+
+function renderSearchUsers(users) {
+
+    if (!users.length) {
+
+        searchResults.innerHTML =
+            '<div class="empty">Ничего не найдено.</div>';
+
+        return;
+    }
+
+
+    searchResults.innerHTML =
+        users.map(function(u) {
+
+            const name =
+                u.display_name ||
+                u.email.split("@")[0];
+
+            const avatar =
+                u.avatar_url
+                    ? `<img src="${u.avatar_url}" alt="">`
+                    : name.charAt(0).toUpperCase();
+
+
+            return `
+                <div class="admin-user search-user">
+
+                    <div class="admin-user-main">
+
+                        <div class="admin-avatar">
+                            ${avatar}
+                        </div>
+
+                        <div class="admin-user-info">
+
+                            <strong>
+                                ${escapeHtml(name)}
+                            </strong>
+
+                            <span>
+                                ${escapeHtml(u.email)}
+                            </span>
+
+                            ${u.city
+                                ? `<span>${escapeHtml(u.city)}</span>`
+                                : ""
+                            }
+
+                            ${u.motorcycle
+                                ? `<span>${escapeHtml(u.motorcycle)}</span>`
+                                : ""
+                            }
+
+                            <div class="admin-badges">
+
+                                <span class="badge">
+                                    ${escapeHtml(u.role)}
+                                </span>
+
+                                ${u.is_banned
+                                    ? '<span class="badge danger">BANNED</span>'
+                                    : ''
+                                }
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="admin-actions">
+
+                        <a
+                            class="btn secondary small"
+                            href="/profile/${u.id}"
+                        >
+                            Профиль
+                        </a>
+
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
+}
+
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+}
+
+
+if (searchInput) {
+
+    searchInput.addEventListener(
+        "input",
+        function() {
+
+            const q =
+                this.value.trim();
+
+            clearTimeout(searchTimer);
+
+
+            if (!q) {
+
+                searchResults.innerHTML = "";
+
+                allUsers.style.display = "";
+
+                return;
+            }
+
+
+            allUsers.style.display = "none";
+
+
+            searchTimer = setTimeout(
+                async function() {
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                "/api/admin/users/search?q="
+                                + encodeURIComponent(q)
+                            );
+
+                        if (!response.ok) {
+                            throw new Error();
+                        }
+
+                        const users =
+                            await response.json();
+
+                        renderSearchUsers(users);
+
+                    } catch (error) {
+
+                        searchResults.innerHTML =
+                            '<div class="empty">Ошибка поиска.</div>';
+
+                    }
+
+                },
+                250
+            );
+
+        }
+    );
+
+}
+
+</script>
+
+{% endblock %}
